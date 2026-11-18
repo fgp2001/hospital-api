@@ -2,6 +2,9 @@ import { Op } from "sequelize";
 import { User } from "../models/user.model.js";
 import { toUserResponse } from "../dtos/user.dto.js";
 import { AppError } from "../errors/app-error.js";
+import bcrypt from "bcrypt";
+
+const SALT_ROUNDS = 12;
 
 const userNotFound = () =>
     new AppError("User not found", {
@@ -52,7 +55,12 @@ export const getById = async (req, res) => {
 };
 
 export const create = async (req, res) => {
-    const user = await User.create(req.dto);
+    const { password, ...data } = req.dto;
+
+    const user = await User.create({
+        ...data,
+        password: await bcrypt.hash(password, SALT_ROUNDS),
+    });
 
     res.status(201).location(`/api/users/${user.id}`).json({ data: toUserResponse(user) });
 };
@@ -64,7 +72,13 @@ export const update = async (req, res) => {
         throw userNotFound();
     }
 
-    await user.update(req.dto);
+    const { password, ...data } = req.dto;
+
+    if (password !== undefined) {
+        data.password = await bcrypt.hash(password, SALT_ROUNDS);
+    }
+
+    await user.update(data);
     res.json({ data: toUserResponse(user) });
 };
 
@@ -77,4 +91,16 @@ export const remove = async (req, res) => {
 
     await user.destroy();
     res.status(204).send();
+}
+
+export const assignRole = async (req, res) => {
+    const user = await User.findByPk(req.userId);
+
+    if (!user) {
+        throw userNotFound();
+    }
+
+    await user.update({ role: req.dto.role });
+
+    res.json({ data: toUserResponse(user) });
 }

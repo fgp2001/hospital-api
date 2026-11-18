@@ -94,3 +94,118 @@ GET {{baseUrl}}/api/nope
 
 ### 18. ESTADO FINAL - Esperado: 200
 GET {{baseUrl}}/api/users
+
+
+@baseUrl = http://localhost:3000
+
+### 1. Crear usuario con password - 201
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "password": "ClaveDePrueba123!"
+}
+
+### 2. Login correcto - 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "ClaveDePrueba123!"
+}
+
+### 3. Login con password incorrecta - 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "Incorrecta123!"
+}
+
+### 4. Login con email inexistente - 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "nadie@example.com",
+  "password": "ClaveDePrueba123!"
+}
+
+### 5. Ver usuarios sin password - 200
+GET {{baseUrl}}/api/users
+
+### 6. Intentar autoasignarse ADMIN - 400
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Usuario Prueba",
+  "email": "prueba@example.com",
+  "password": "ClaveDePrueba123!",
+  "role": "ROLE_ADMIN"
+}
+
+### 7. Cambiar rol sin permisos - 403
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+
+{
+  "role": "ROLE_ADMIN"
+}
+
+### 8. Cambiar rol como ROLE_USER - 403
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+x-user-role: ROLE_USER
+
+{
+  "role": "ROLE_ADMIN"
+}
+
+### 9. Cambiar rol como ROLE_ADMIN - 200
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+x-user-role: ROLE_ADMIN
+
+{
+  "role": "ROLE_ADMIN"
+}
+
+### 10. Asignar rol invalido - 400
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+x-user-role: ROLE_ADMIN
+
+{
+  "role": "SUPERADMIN"
+}
+
+### 11. Cambiar password - 200
+PATCH {{baseUrl}}/api/users/1
+Content-Type: application/json
+
+{
+  "password": "NuevaClave456!"
+}
+
+### 12. Login con password nueva - 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "NuevaClave456!"
+}
+
+### 13. Login con password antigua - 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "ClaveDePrueba123!"
+}

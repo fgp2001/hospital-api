@@ -1,48 +1,57 @@
-# Hospital API - Tarea 013
+# Hospital API — Tarea 013
 
-API REST de usuarios desarrollada con **Node.js, Express 5, PostgreSQL 16.15 y Sequelize 6**, como parte de la Tarea 013 de la Clase 7 de Node.js.
+API REST de usuarios desarrollada con **Node.js, Express 5, PostgreSQL 16.15 y Sequelize 6**, como parte de la Clase 7 de Node.js (Kopius — The Academy).
 
-**Alcance actual:** aunque el repositorio se llama `hospital-api`, esta entrega implementa el CRUD de usuarios solicitado en la consigna. Todavía no incluye módulos de pacientes, turnos u hospitales.
+Incluye el CRUD de usuarios de la **Tarea 013** y la ampliación propuesta en el **Desafío 7.6: contraseñas y roles**.
+
+> **Alcance:** aunque el repositorio se llama `hospital-api`, por ahora trabaja con usuarios. No incluye todavía pacientes, turnos ni hospitales.
+>
+> **Uso educativo:** la autorización por el header `x-user-role` es una **simulación insegura** exigida por la práctica. No es apta para producción ni debe exponerse públicamente con datos reales.
 
 ## Tecnologías
 
-- **Node.js y Express 5:** servidor y endpoints HTTP.
-- **PostgreSQL 16.15:** persistencia relacional.
-- **Docker Compose:** entorno local de base de datos.
-- **Sequelize 6 + pg:** ORM y conexión con PostgreSQL.
-- **Yup:** validación y normalización de datos mediante DTOs.
-- **dotenv y cors:** configuración y acceso desde un frontend.
-- **pgAdmin 4 (opcional):** administración visual de PostgreSQL.
+- **Node.js 24 / Express 5:** servidor HTTP y rutas REST.
+- **PostgreSQL 16.15 / Docker Compose:** base relacional y persistencia local.
+- **Sequelize 6 / pg / pg-hstore:** ORM y conexión a PostgreSQL.
+- **Yup:** validación, normalización y DTOs de entrada y salida.
+- **bcrypt:** hash y verificación de contraseñas.
+- **dotenv / cors:** variables de entorno y configuración CORS.
+- **pgAdmin 4 (opcional):** cliente gráfico de PostgreSQL.
+- **REST Client de VS Code (opcional):** ejecución de peticiones HTTP desde `api.http`.
 
 ## Requisitos
 
-- Node.js 20 o posterior y npm (desarrollado localmente con Node.js 24).
+- Node.js (recomendado: **24**, versión usada durante la práctica) y npm.
 - Docker Desktop en ejecución.
-- Un cliente de PostgreSQL como pgAdmin 4 (opcional, para crear e inspeccionar la tabla).
+- pgAdmin 4 u otro cliente PostgreSQL, o acceso a `psql` mediante Docker.
 
-## Inicio rápido
+## Instalación desde cero
 
-### 1. Clonar e instalar dependencias
+### 1. Clonar e instalar
 
-```bash
+```powershell
 git clone https://github.com/TU_USUARIO/hospital-api.git
 cd hospital-api
 npm install
 ```
 
-> Reemplazá `TU_USUARIO` por el usuario real de GitHub del repositorio.
+Reemplazá `TU_USUARIO` por el nombre de usuario real de GitHub. Si ya tenés el proyecto en tu computadora, no necesitás clonarlo nuevamente.
 
-### 2. Configurar variables de entorno
+Si estás actualizando un proyecto de la Tarea 013 que todavía no tiene bcrypt:
 
-Si todavía no existe un archivo `.env`, crealo a partir de `.env.example`:
+```powershell
+npm install bcrypt
+```
+
+### 2. Crear el `.env`
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Variables esperadas (valores locales de ejemplo):
+Ejemplo de configuración local:
 
-```env
+```dotenv
 PORT=3000
 CORS_ORIGIN=http://localhost:5173
 
@@ -54,287 +63,379 @@ DB_PASSWORD=CAMBIAR_POR_TU_PASSWORD_LOCAL
 DB_LOGGING=false
 ```
 
-> **Importante:** el archivo `.env` contiene tu contraseña real y no debe subirse a GitHub. La contraseña debe coincidir con la del usuario de PostgreSQL.
->
-> El puerto `5433` es el publicado en Windows para evitar conflictos con otra instancia local de PostgreSQL.
+- `DB_PASSWORD` debe coincidir con la contraseña configurada **dentro de PostgreSQL**, no solo con una nueva contraseña escrita en el `.env`.
+- `.env` contiene secretos: **no subirlo a Git**. El `.env.example` sí se versiona, con una contraseña ficticia.
+- Se utiliza **5433 en Windows** porque ya había otra instancia local de PostgreSQL utilizando `5432`.
 
-### 3. Levantar PostgreSQL con Docker
+### 3. Levantar PostgreSQL
 
 Desde la raíz del proyecto:
 
-```bash
+```powershell
 docker compose up -d --wait
 docker compose ps
 ```
 
-La configuración local de `docker-compose.yaml` utiliza PostgreSQL 16.15 y el siguiente mapeo:
+Configuración relevante de `docker-compose.yaml`:
 
 ```yaml
-ports:
-  - "5433:5432"
-
-volumes:
-  - ./postgres:/var/lib/postgresql/data
+services:
+  db:
+    image: postgres:16.15
+    container_name: nodepgdb
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
 ```
 
-Esto significa:
+| Servicio | Puerto |
+| --- | --- |
+| PostgreSQL visto desde Windows / pgAdmin / Node.js | `5433` |
+| PostgreSQL dentro del contenedor | `5432` |
+| API Express | `3000` |
 
-- **Windows/host:** puerto `5433`.
-- **Contenedor:** puerto `5432`.
-- **Persistencia:** la carpeta `postgres/` conserva los datos aunque se detenga o recree el contenedor.
+El directorio `postgres/` almacena los datos. `docker compose down` detiene y elimina el contenedor, **sin borrar esa carpeta**.
 
-### 4. Crear la tabla `users`
+### 4. Preparar la base de datos
 
-Conectate desde pgAdmin (o cualquier cliente SQL) utilizando los siguientes datos:
+En pgAdmin, registrá el servidor con **host `127.0.0.1`**, puerto **`5433`**, usuario **`postgres`**, la contraseña de PostgreSQL y base **`nodepgdb`**. Abrí el **Query Tool** de `nodepgdb`.
 
-| Campo | Valor |
-|---|---|
-| Host | `127.0.0.1` |
-| Puerto | `5433` |
-| Usuario | `postgres` |
-| Contraseña | `DB_PASSWORD` de `.env` |
-| Base de datos | `nodepgdb` |
-
-Abrí el **Query Tool** de la base `nodepgdb` y ejecutá:
+**Para una instalación nueva (tabla todavía inexistente)**, ejecutá este SQL **una sola vez**:
 
 ```sql
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    name VARCHAR(120) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TYPE user_role AS ENUM ('ROLE_USER', 'ROLE_ADMIN');
+
+CREATE TABLE users (
+  id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  role user_role NOT NULL DEFAULT 'ROLE_USER',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
 
-**Carga de datos de ejemplo (opcional, ejecutar una sola vez):**
+La columna `password` guarda **un hash de bcrypt**, nunca la contraseña en texto plano. El valor inicial del rol es `ROLE_USER`.
+
+**Si ya tenías la tabla de la Tarea 013 sin `password` ni `role`**, no ejecutes el `CREATE TABLE` anterior: seguí el apartado siguiente.
+
+### 5. Actualizar una tabla existente de la Tarea 013
+
+> **Cuidado: este procedimiento elimina los usuarios existentes.** Es apropiado únicamente si son registros de prueba que podés descartar. No lo ejecutes con datos que necesites conservar. Para conservarlos, hace falta una migración que genere hashes válidos antes de agregar `NOT NULL`.
+
+Conectado a `nodepgdb` en pgAdmin, y **solo si todavía no agregaste estas columnas y el tipo**, ejecutá:
 
 ```sql
-INSERT INTO users (name, email) VALUES
-    ('John Doe', 'john.doe@example.com'),
-    ('Jane Smith', 'jane.smith@example.com');
+TRUNCATE TABLE users RESTART IDENTITY;
 
-SELECT * FROM users ORDER BY id;
+ALTER TABLE users
+  ADD COLUMN password VARCHAR(255) NOT NULL;
+
+CREATE TYPE user_role AS ENUM ('ROLE_USER', 'ROLE_ADMIN');
+
+ALTER TABLE users
+  ADD COLUMN role user_role NOT NULL DEFAULT 'ROLE_USER';
 ```
 
-> Si la tabla ya contiene esos emails, no vuelvas a ejecutar el `INSERT`, ya que la restricción `UNIQUE` rechazará los registros duplicados.
+No vuelvas a ejecutar este bloque una vez aplicado. A diferencia de la tarea original, **no insertes usuarios con SQL omitiendo `password`**: ahora es obligatorio. Crealos a través de `POST /api/users` para que bcrypt genere el hash.
 
-### 5. Iniciar la API
+Verificación rápida:
 
-```bash
+```sql
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'users'
+ORDER BY ordinal_position;
+```
+
+Se esperan `id`, `name`, `email`, `created_at`, `updated_at`, `password` y `role`.
+
+### 6. Iniciar la API
+
+```powershell
 npm run dev
 ```
 
-Salida esperada, si la base de datos está disponible:
+Salida esperada si la base está disponible:
 
 ```text
-Database connection established -> nodepgdb
+Database connection established → nodepgdb
 Server is running on http://localhost:3000
 ```
 
-El comando utiliza el modo `--watch` de Node.js.
+`npm run dev` usa `node --watch src/server.js`. Para ejecutar sin modo watch: `npm start`.
 
-Para iniciar sin watch:
-
-```bash
-npm start
-```
-
-Comprobá que la API esté funcionando ingresando a:
-
-[http://localhost:3000/api/health](http://localhost:3000/api/health)
-
-Respuesta esperada:
+Abrí [http://localhost:3000/api/health](http://localhost:3000/api/health); respuesta esperada:
 
 ```json
-{
-    "status": "ok"
-}
+{ "status": "ok" }
 ```
 
 ## Endpoints
 
 **Base URL:** `http://localhost:3000`
 
-| Método | Ruta | Descripción | Respuesta exitosa |
-|---|---|---|---|
+| Método | Ruta | Descripción | Éxito |
+| --- | --- | --- | --- |
 | GET | `/api/health` | Estado del servidor | 200 |
 | GET | `/api/users` | Listar usuarios por ID | 200 |
-| GET | `/api/users/search?keywords=ada` | Buscar por nombre o email, sin distinguir mayúsculas | 200 |
+| GET | `/api/users/search?keywords=ada` | Buscar por nombre o email sin distinguir mayúsculas | 200 |
 | GET | `/api/users/:id` | Obtener usuario por ID | 200 |
-| POST | `/api/users` | Crear usuario | 201 y header Location |
-| PATCH | `/api/users/:id` | Actualizar uno o más campos | 200 |
+| POST | `/api/users` | Crear usuario con contraseña hasheada | 201 + header `Location` |
+| PATCH | `/api/users/:id` | Actualizar nombre, email o contraseña | 200 |
 | DELETE | `/api/users/:id` | Eliminar usuario | 204, sin body |
+| POST | `/api/auth/login` | Verificar email y contraseña | 200 |
+| PATCH | `/api/users/:id/role` | Cambiar rol (header de demostración) | 200 |
 
-### Ejemplo: crear un usuario
-
-**Request:**
+### Crear un usuario
 
 ```http
-POST /api/users
+POST http://localhost:3000/api/users
 Content-Type: application/json
+
+{
+  "name": "Ada Lovelace",
+  "email": "ADA@Example.com",
+  "password": "ClaveDePrueba123!"
+}
 ```
+
+Ejemplo de respuesta `201 Created` (el ID puede variar):
 
 ```json
 {
+  "data": {
+    "id": 1,
     "name": "Ada Lovelace",
-    "email": "ada@example.com"
+    "email": "ada@example.com",
+    "role": "ROLE_USER"
+  }
 }
 ```
 
-**Respuesta exitosa:**
+Yup normaliza el email, valida los campos permitidos y exige una contraseña de al menos 8 caracteres. bcrypt genera el hash antes de guardar; **la contraseña y el hash nunca forman parte de la respuesta pública**. El DTO de creación no permite enviar `role`.
+
+### Login
+
+```http
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "password": "ClaveDePrueba123!"
+}
+```
+
+Respuesta esperada para credenciales correctas: `200 OK` y `data` con `id`, `name`, `email`, `role`. Para email inexistente o contraseña incorrecta, se devuelve **el mismo error**:
 
 ```json
 {
-    "data": {
-        "id": 3,
-        "name": "Ada Lovelace",
-        "email": "ada@example.com"
-    }
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid credentials"
+  }
 }
 ```
 
-> El ID real puede variar según los registros existentes.
+Estado: **401 Unauthorized**. El login de este ejercicio **no emite JWT, cookie ni sesión**; solamente verifica las credenciales.
 
-**Validaciones y DTOs:**
+### Actualizar contraseña
 
-- El DTO de entrada aplica `trim()` al nombre.
-- El email se normaliza mediante `trim()` y `lowercase()`.
-- El DTO de salida expone únicamente `id`, `name` y `email`, sin devolver el modelo completo.
+```http
+PATCH http://localhost:3000/api/users/1
+Content-Type: application/json
+
+{
+  "password": "NuevaClave456!"
+}
+```
+
+El controller vuelve a ejecutar `bcrypt.hash` antes de guardar. La contraseña nueva debe permitir el login y la anterior debe fallar. **Este endpoint no verifica quién solicita el cambio:** es parte de la práctica, no un diseño seguro de producción.
+
+### Cambiar el rol de un usuario
+
+```http
+PATCH http://localhost:3000/api/users/1/role
+Content-Type: application/json
+x-user-role: ROLE_ADMIN
+
+{
+  "role": "ROLE_ADMIN"
+}
+```
+
+Valores posibles: `ROLE_USER`, `ROLE_ADMIN`. Si falta `x-user-role` o vale `ROLE_USER`, el middleware responde `403 FORBIDDEN`. Si el body contiene `"role": "ADMIN"`, Yup responde `400 VALIDATION_ERROR`.
+
+> **Advertencia de seguridad:** `x-user-role` es un encabezado **controlado por el cliente**, y cualquiera puede enviar `ROLE_ADMIN`. Es solo una simulación para aprender middleware de autorización. Una API real debe verificar la identidad y obtener el rol de una sesión o token validado por el servidor.
+
+## DTOs, validaciones y seguridad de datos
+
+- **`createUserDto`:** requiere `name`, `email`, `password`; rechaza claves desconocidas como `role` o `password_hash`.
+- **`updateUserDto`:** permite actualizar uno o más de `name`, `email`, `password`; rechaza el objeto vacío.
+- **`assignRoleDto`:** acepta solo los roles declarados en el ENUM.
+- **`loginDto`:** valida el email y la contraseña enviados al login.
+- **`toUserResponse`:** expone exclusivamente `id`, `name`, `email`, `role`.
+- **Sequelize / PostgreSQL:** aplican validaciones de modelo, `NOT NULL`, `UNIQUE` y el ENUM nativo `user_role`.
+- **bcrypt:** genera hashes con 12 rondas de salt en este desafío. No registrar contraseñas ni hashes en logs.
+
+> bcrypt limita la entrada efectiva a **72 bytes**. Si tu implementación usa la validación adicional de bytes, mantenela alineada con el DTO; para producción conviene revisar cuidadosamente la política de longitud y no modificar contraseñas silenciosamente.
+
+## Pruebas recomendadas
+
+Podés probar los endpoints mediante REST Client de VS Code (`api.http`), Postman o PowerShell. Los ejemplos siguientes son para REST Client; ejecutalos en orden sobre una base de prueba. Los IDs dependen de los registros que ya existan.
+
+```http
+@baseUrl = http://localhost:3000
+
+### Crear usuario — 201
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{"name":"Ada Lovelace","email":"ada@example.com","password":"ClaveDePrueba123!"}
+
+### Login correcto — 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"ada@example.com","password":"ClaveDePrueba123!"}
+
+### Login incorrecto — 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"ada@example.com","password":"Incorrecta123!"}
+
+### No permitir autoasignarse ADMIN — 400
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{"name":"Otro Usuario","email":"otro@example.com","password":"ClaveDePrueba123!","role":"ROLE_ADMIN"}
+
+### Rol sin header — 403 (reemplazar 1 por un ID existente)
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+
+{"role":"ROLE_ADMIN"}
+
+### Rol con header simulado — 200
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+x-user-role: ROLE_ADMIN
+
+{"role":"ROLE_ADMIN"}
+
+### Rol inválido — 400
+PATCH {{baseUrl}}/api/users/1/role
+Content-Type: application/json
+x-user-role: ROLE_ADMIN
+
+{"role":"SUPERADMIN"}
+```
+
+**Nota:** ejecutar dos veces el POST de Ada devolverá `409 EMAIL_TAKEN`. Para ejecutar de nuevo la prueba de creación, usá un email diferente o reiniciá **solamente los datos de prueba**.
+
+### Verificar hashes y roles en pgAdmin
+
+```sql
+SELECT id, email, password, role
+FROM users
+ORDER BY id;
+```
+
+La columna `password` debería contener un hash similar a `$2b$12$...`, **nunca el valor recibido por HTTP**. En las respuestas de la API, el campo `password` no debe aparecer.
+
+### Persistencia
+
+1. Creá un usuario por la API.
+2. Detené Node con `Ctrl + C` y reiniciá con `npm run dev`.
+3. Verificá `GET /api/users`: el usuario debe continuar allí.
+4. Detené Node, ejecutá `docker compose down` y luego `docker compose up -d --wait`.
+5. Volvé a iniciar Node y comprobá que los registros sigan existiendo.
+
+### Fail fast
+
+1. Detené Node y PostgreSQL (`docker compose down`).
+2. Ejecutá `npm run dev`: la aplicación debería **fallar al iniciar**, porque `sequelize.authenticate()` no puede conectar.
+3. Volvé a levantar PostgreSQL y reiniciá la API.
 
 ## Manejo de errores
 
-| Caso | Estado HTTP | Código |
-|---|---|---|
-| Datos inválidos o PATCH vacío | 400 | `VALIDATION_ERROR` |
-| ID que no es entero positivo | 400 | `INVALID_ID` |
+| Situación | HTTP | Código |
+| --- | --- | --- |
+| Body o campos inválidos; PATCH vacío; rol inválido | 400 | `VALIDATION_ERROR` |
+| ID no numérico o no positivo | 400 | `INVALID_ID` |
 | JSON mal formado | 400 | `INVALID_JSON` |
+| Credenciales incorrectas | 401 | `INVALID_CREDENTIALS` |
+| Header de rol ausente o insuficiente | 403 | `FORBIDDEN` |
 | Usuario inexistente | 404 | `USER_NOT_FOUND` |
 | Ruta inexistente | 404 | `ROUTE_NOT_FOUND` |
 | Email duplicado | 409 | `EMAIL_TAKEN` |
-| Error inesperado | 500 | `INTERNAL_ERROR` (o código específico) |
-
-## Probar la API
-
-Podés utilizar el navegador para los endpoints GET o la extensión **REST Client de VS Code** con un archivo `api.http` (si está incluido en tu copia del proyecto).
-
-También podés utilizar PowerShell:
-
-**Health check:**
-
-```powershell
-Invoke-RestMethod -Uri 'http://localhost:3000/api/health'
-```
-
-**Listar usuarios:**
-
-```powershell
-Invoke-RestMethod -Uri 'http://localhost:3000/api/users'
-```
-
-**Crear usuario:**
-
-```powershell
-Invoke-RestMethod -Method Post `
-  -Uri 'http://localhost:3000/api/users' `
-  -ContentType 'application/json' `
-  -Body '{"name":"Ada Lovelace","email":"ada@example.com"}'
-```
-
-> Si ya creaste `ada@example.com`, el último ejemplo devolverá un `409` por email duplicado. Es una validación esperada.
-
-### Verificar persistencia de datos
-
-1. Creá un usuario mediante la API.
-2. Detené Node.js con `Ctrl + C`.
-3. Volvé a iniciar la aplicación con `npm run dev`.
-4. Comprobá que el usuario siga apareciendo en `GET /api/users`.
-
-También debería permanecer luego de ejecutar:
-
-```bash
-docker compose down
-docker compose up -d --wait
-```
-
-Esto es posible porque los datos se almacenan en la carpeta local `./postgres/`.
-
-### Verificar el fail fast
-
-1. Detené primero Node.js.
-2. Apagá la base de datos:
-
-```bash
-docker compose down
-```
-
-3. Intentá iniciar la API con `npm run dev`.
-
-La aplicación debería fallar al intentar conectarse a PostgreSQL.
-
-Al terminar, volvé a iniciar Docker y la API.
+| Error inesperado | 500 | `INTERNAL_ERROR` o código correspondiente |
 
 ## Estructura del proyecto
 
 ```text
 hospital-api/
-│
 ├── .env.example
 ├── .gitignore
 ├── docker-compose.yaml
 ├── package.json
+├── package-lock.json
 ├── README.md
-├── api.http                  # Opcional: colección de pruebas
-│
+├── api.http                       # Opcional: solicitudes REST Client
 └── src/
     ├── app.js
     ├── server.js
-    │
     ├── config/
     │   └── database.js
-    │
     ├── models/
     │   └── user.model.js
-    │
     ├── dtos/
-    │   └── user.dto.js
-    │
+    │   ├── user.dto.js
+    │   └── auth.dto.js
     ├── errors/
     │   └── app-error.js
-    │
     ├── controllers/
-    │   └── user.controller.js
-    │
+    │   ├── user.controller.js
+    │   └── auth.controller.js
     ├── routes/
-    │   └── user.routes.js
-    │
+    │   ├── user.routes.js
+    │   └── auth.routes.js
     └── middlewares/
         ├── validate-body.middleware.js
         ├── validate-id.middleware.js
+        ├── require-role.middleware.js
         ├── not-found.middleware.js
         └── error.middleware.js
 ```
 
-**Flujo de una petición:**
+Flujo principal: **Route → Middleware / DTO → Controller → Modelo Sequelize → PostgreSQL**.
 
-```text
-Route → Middleware → Controller → Model → PostgreSQL
-```
+## Problemas frecuentes
 
-## Solución de problemas
+| Mensaje / síntoma | Qué revisar |
+| --- | --- |
+| `password authentication failed` desde pgAdmin | Conectar al puerto `5433` y usar la contraseña real del usuario `postgres`. Cambiar el `.env` no modifica una base ya inicializada. |
+| `relation "users" does not exist` | Crear o migrar la tabla en **`nodepgdb`** y verificar `DB_NAME` / `DB_PORT`. |
+| `column "password" does not exist` | Falta la migración del desafío a la tabla existente. |
+| `type "user_role" does not exist` | Falta ejecutar `CREATE TYPE user_role ...` antes de agregar la columna. |
+| `column "createdAt" does not exist` | Verificar `underscored: true`. |
+| `Missing parameter name ... :/id` | Corregir rutas: `/:id` (no `:/id`). |
+| `GET /api/users/search` devuelve `INVALID_ID` | Declarar `/search` antes de `/:id`. |
+| `port is already allocated` | Evitar el conflicto local manteniendo `5433:5432` y `DB_PORT=5433`. |
+| `ECONNREFUSED` | Ejecutar `docker compose ps` y verificar que Docker esté arriba. |
+| `password` aparece en la respuesta | Usar `toUserResponse`, nunca devolver el modelo Sequelize sin filtrar. |
+| `403` al cambiar roles | Es esperado sin el header de prueba `x-user-role: ROLE_ADMIN`. |
 
-| Mensaje / síntoma | Posible solución |
-|---|---|
-| `password authentication failed` desde pgAdmin | Verificá el puerto `5433`, el usuario `postgres` y la contraseña real configurada en PostgreSQL. Cambiar `.env` no actualiza automáticamente una base ya inicializada. |
-| `relation "users" does not exist` | Creá la tabla en la base `nodepgdb` del contenedor y verificá `DB_NAME` y `DB_PORT=5433`. |
-| `port is already allocated` | Mantené `5433:5432` si ya utilizás el puerto `5432` en Windows. |
-| `Missing parameter name ... :/id` | Corregí las rutas dinámicas en Express: deben escribirse `/:id`. |
-| `ECONNREFUSED` | Revisá `docker compose ps` y verificá que Docker Desktop esté iniciado. |
-| El servidor no arranca | Revisá las variables del `.env`, la disponibilidad de PostgreSQL y los logs de Node.js. |
+## Seguridad y versionado
 
-## Seguridad y Git
-
-El archivo `.gitignore` debe incluir al menos:
+`.gitignore` debe incluir, como mínimo:
 
 ```gitignore
 node_modules/
@@ -342,26 +443,36 @@ node_modules/
 postgres/
 ```
 
-**Buenas prácticas:**
+- No commitear contraseñas reales, hashes, datos de PostgreSQL ni archivos `.env`.
+- Versionar `.env.example` con credenciales ficticias.
+- Si un secreto se publicó accidentalmente, hay que **rotarlo**, aunque se borre del último commit.
+- Este proyecto **no implementa autenticación de sesión/token ni autorización segura**. Los endpoints de usuarios no están restringidos a una identidad autenticada: **solo utilizar en entornos locales de práctica**.
 
-- Nunca subas credenciales reales ni archivos internos de la base de datos.
-- El archivo `.env.example` sí debe versionarse, pero utilizando contraseñas ficticias.
-- Si alguna credencial real llegó a publicarse, es necesario cambiarla.
+Para subir los cambios de documentación y código una vez implementados y probados:
+
+```powershell
+git status
+git add README.md src package.json package-lock.json
+# Agregar api.http si existe y querés versionar las pruebas:
+# git add api.http
+git commit -m "feat: add password hashing, login and roles challenge"
+git push origin main
+```
 
 ## Detener el entorno
 
-- **API:** `Ctrl + C` en la terminal de Node.js. El servidor cierra el pool de Sequelize.
-- **Base de datos:** ejecutar `docker compose down`.
+- **API:** `Ctrl + C` en la terminal de Node.js (cierra el servidor y el pool de Sequelize).
+- **Base de datos:** `docker compose down` (conserva `./postgres/`).
 
-Para volver a iniciar el entorno:
+Para volver a iniciar:
 
-```bash
+```powershell
 docker compose up -d --wait
 npm run dev
 ```
 
 ---
 
-**Proyecto académico de práctica:** Kopius - The Academy  
-**Curso:** Node.js - Clase 7  
-**Entrega:** Tarea 013
+**Proyecto académico:** Kopius — The Academy  
+**Curso:** Node.js — Clase 7  
+**Entrega:** Tarea 013 + Desafío 7.6 (password y roles)
