@@ -1,0 +1,96 @@
+
+@baseUrl = http://localhost:3000
+
+### 1. HEALTH - Esperado: 200
+GET {{baseUrl}}/api/health
+
+### 2. LISTAR USUARIOS - Esperado: 200
+GET {{baseUrl}}/api/users
+
+### 3. BUSCAR JANE - Esperado: 200
+GET {{baseUrl}}/api/users/search?keywords=JANE
+
+### 4. BUSCAR SIN KEYWORDS - Esperado: 200
+GET {{baseUrl}}/api/users/search
+
+### 5. OBTENER USUARIO EXISTENTE - Esperado: 200
+GET {{baseUrl}}/api/users/1
+
+### 6. USUARIO INEXISTENTE - Esperado: 404
+GET {{baseUrl}}/api/users/999
+
+### 7. ID INVALIDO - Esperado: 400
+GET {{baseUrl}}/api/users/abc
+
+### 8. CREAR USUARIO VALIDO - Esperado: 201
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "  Ada Lovelace ",
+  "email": " ADA@Example.com "
+}
+
+### 9. EMAIL DUPLICADO - Esperado: 409
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Ada",
+  "email": "ada@example.com"
+}
+
+### 10. CREAR USUARIO INVALIDO - Esperado: 400
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "email": "no-es-email"
+}
+
+### 11. CAMPO NO PERMITIDO - Esperado: 400
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Ada",
+  "email": "ada2@example.com",
+  "role": "admin"
+}
+
+### 12. PATCH PARCIAL - Esperado: 200
+PATCH {{baseUrl}}/api/users/1
+Content-Type: application/json
+
+{
+  "name": "John D."
+}
+
+### 13. PATCH VACIO - Esperado: 400
+PATCH {{baseUrl}}/api/users/1
+Content-Type: application/json
+
+{}
+
+### 14. PATCH USUARIO INEXISTENTE - Esperado: 404
+PATCH {{baseUrl}}/api/users/999
+Content-Type: application/json
+
+{
+  "name": "Nadie"
+}
+
+### 15. ELIMINAR ADA - Esperado: 204
+DELETE {{baseUrl}}/api/users/3
+
+### 16. JSON MAL FORMADO - Esperado: 400
+POST {{baseUrl}}/api/users
+Content-Type: application/json
+
+{"name":"Ada",}
+
+### 17. RUTA INEXISTENTE - Esperado: 404
+GET {{baseUrl}}/api/nope
+
+### 18. ESTADO FINAL - Esperado: 200
+GET {{baseUrl}}/api/users
