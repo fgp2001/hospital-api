@@ -15,6 +15,22 @@ export const errorHandler = (error, req, res, next) => {
     }
 
     if (error instanceof UniqueConstraintError) {
+        const fields = Object.keys(error.fields ?? {});
+
+        if (
+            fields.includes("document_number") ||
+            fields.includes("documentNumber")
+        ) {
+            return res.status(409).json({
+                error: {
+                    code: "DOCUMENT_NUMBER_TAKEN",
+                    message: "Document number is already registered",
+                },
+            });
+        }
+    }
+
+    if (error instanceof UniqueConstraintError) {
         return res.status(409).json({
             error: {
                 code: "EMAIL_TAKEN",

@@ -96,8 +96,6 @@ GET {{baseUrl}}/api/nope
 GET {{baseUrl}}/api/users
 
 
-@baseUrl = http://localhost:3000
-
 ### 1. Crear usuario con password - 201
 POST {{baseUrl}}/api/users
 Content-Type: application/json
@@ -209,3 +207,79 @@ Content-Type: application/json
   "email": "ada@example.com",
   "password": "ClaveDePrueba123!"
 }
+
+
+### 1. CREAR PACIENTE - 201
+# @name createPatient
+POST {{baseUrl}}/api/patients
+Content-Type: application/json
+
+{
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "documentNumber": "30111222",
+  "birthDate": "1985-12-10"
+}
+
+### 2. LISTAR PACIENTES - 200
+GET {{baseUrl}}/api/patients
+
+### 3. BUSCAR POR APELLIDO - 200
+GET {{baseUrl}}/api/patients/search?keywords=LOVELACE
+
+### 4. OBTENER PACIENTE - 200
+GET {{baseUrl}}/api/patients/{{createPatient.response.body.$.data.id}}
+
+### 5. ACTUALIZAR PACIENTE - 200
+PATCH {{baseUrl}}/api/patients/{{createPatient.response.body.$.data.id}}
+Content-Type: application/json
+
+{
+  "lastName": "Lovelace Byron"
+}
+
+### 6. DOCUMENTO REPETIDO - 409
+POST {{baseUrl}}/api/patients
+Content-Type: application/json
+
+{
+  "firstName": "Otra",
+  "lastName": "Persona",
+  "documentNumber": "30111222",
+  "birthDate": "1990-05-10"
+}
+
+### 7. BODY INVALIDO - 400
+POST {{baseUrl}}/api/patients
+Content-Type: application/json
+
+{
+  "firstName": "A"
+}
+
+### 8. ID NO NUMERICO - 400
+GET {{baseUrl}}/api/patients/abc
+
+### 9. ID INEXISTENTE - 404
+GET {{baseUrl}}/api/patients/999999
+
+### 10. PATCH VACIO - 400
+PATCH {{baseUrl}}/api/patients/{{createPatient.response.body.$.data.id}}
+Content-Type: application/json
+
+{}
+
+### 11. CAMPO DESCONOCIDO - 400
+POST {{baseUrl}}/api/patients
+Content-Type: application/json
+
+{
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "documentNumber": "40111222",
+  "birthDate": "1985-12-10",
+  "role": "ADMIN"
+}
+
+### 12. ELIMINAR PACIENTE - 204
+DELETE {{baseUrl}}/api/patients/{{createPatient.response.body.$.data.id}}
