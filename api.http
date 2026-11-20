@@ -283,3 +283,247 @@ Content-Type: application/json
 
 ### 12. ELIMINAR PACIENTE - 204
 DELETE {{baseUrl}}/api/patients/{{createPatient.response.body.$.data.id}}
+
+//@specialtyId = 4
+
+### 1. LISTAR ESPECIALIDADES - 200
+GET {{baseUrl}}/api/specialties
+
+### 2. OBTENER ESPECIALIDAD - 200
+GET {{baseUrl}}/api/specialties/{{specialtyId}}
+
+### 3. CREAR MEDICO - 201
+# @name createDoctor
+POST {{baseUrl}}/api/doctors
+Content-Type: application/json
+
+{
+  "firstName": "Gregory",
+  "lastName": "House",
+  "licenseNumber": "MN-88421",
+  "specialtyId": {{specialtyId}}
+}
+
+### 4. LISTAR MEDICOS - 200
+GET {{baseUrl}}/api/doctors
+
+### 5. BUSCAR MEDICO - 200
+GET {{baseUrl}}/api/doctors/search?keywords=HOUSE
+
+### 6. OBTENER MEDICO - 200
+GET {{baseUrl}}/api/doctors/{{createDoctor.response.body.$.data.id}}
+
+### 7. ACTUALIZAR MEDICO - 200
+PATCH {{baseUrl}}/api/doctors/{{createDoctor.response.body.$.data.id}}
+Content-Type: application/json
+
+{
+  "lastName": "House Jr."
+}
+
+### 8. MATRICULA DUPLICADA - 409
+POST {{baseUrl}}/api/doctors
+Content-Type: application/json
+
+{
+  "firstName": "Otro",
+  "lastName": "Doctor",
+  "licenseNumber": "MN-88421",
+  "specialtyId": {{specialtyId}}
+}
+
+### 9. ESPECIALIDAD INEXISTENTE - 400
+POST {{baseUrl}}/api/doctors
+Content-Type: application/json
+
+{
+  "firstName": "Ana",
+  "lastName": "Garcia",
+  "licenseNumber": "MN-99999",
+  "specialtyId": 999999
+}
+
+### 10. ID INVALIDO - 400
+GET {{baseUrl}}/api/doctors/abc
+
+### 11. MEDICO INEXISTENTE - 404
+GET {{baseUrl}}/api/doctors/999999
+
+### 12. PATCH VACIO - 400
+PATCH {{baseUrl}}/api/doctors/{{createDoctor.response.body.$.data.id}}
+Content-Type: application/json
+
+{}
+
+### 13. CAMPO DESCONOCIDO - 400
+POST {{baseUrl}}/api/doctors
+Content-Type: application/json
+
+{
+  "firstName": "Ana",
+  "lastName": "Garcia",
+  "licenseNumber": "MN-12345",
+  "specialtyId": {{specialtyId}},
+  "role": "ADMIN"
+}
+
+### 14. ELIMINAR MEDICO - 204
+DELETE {{baseUrl}}/api/doctors/{{createDoctor.response.body.$.data.id}}
+
+### Crear enfermero - 201
+# @name createNurse
+POST {{baseUrl}}/api/nurses
+Content-Type: application/json
+
+{
+  "firstName": "Florence",
+  "lastName": "Nightingale",
+  "licenseNumber": "EN-10234"
+}
+
+### Listar enfermeros - 200
+GET {{baseUrl}}/api/nurses
+
+### Buscar por apellido - 200
+GET {{baseUrl}}/api/nurses/search?keywords=NIGHTINGALE
+
+### Obtener enfermero - 200
+GET {{baseUrl}}/api/nurses/{{createNurse.response.body.$.data.id}}
+
+### Actualizar enfermero - 200
+PATCH {{baseUrl}}/api/nurses/{{createNurse.response.body.$.data.id}}
+Content-Type: application/json
+
+{
+  "firstName": "Florencia"
+}
+
+### Matrícula repetida - 409
+POST {{baseUrl}}/api/nurses
+Content-Type: application/json
+
+{
+  "firstName": "Otra",
+  "lastName": "Enfermera",
+  "licenseNumber": "EN-10234"
+}
+
+### Body inválido - 400
+POST {{baseUrl}}/api/nurses
+Content-Type: application/json
+
+{
+  "firstName": "A"
+}
+
+### ID inválido - 400
+GET {{baseUrl}}/api/nurses/abc
+
+### Eliminar enfermero - 204
+DELETE {{baseUrl}}/api/nurses/{{createNurse.response.body.$.data.id}}
+
+@specialtyId = 1
+
+### 1. Crear paciente para la cita - 201
+# @name appointmentPatient
+POST {{baseUrl}}/api/patients
+Content-Type: application/json
+
+{
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "documentNumber": "50981234",
+  "birthDate": "1985-12-10"
+}
+
+### 2. Crear médico para la cita - 201
+# @name appointmentDoctor
+POST {{baseUrl}}/api/doctors
+Content-Type: application/json
+
+{
+  "firstName": "Gregory",
+  "lastName": "House",
+  "licenseNumber": "MN-901234",
+  "specialtyId": {{specialtyId}}
+}
+
+### 3. Crear cita - 201
+# @name createdAppointment
+POST {{baseUrl}}/api/appointments
+Content-Type: application/json
+
+{
+  "patientId": {{appointmentPatient.response.body.$.data.id}},
+  "doctorId": {{appointmentDoctor.response.body.$.data.id}},
+  "date": "2026-11-20",
+  "reason": "Control de presión arterial"
+}
+
+### 4. Listar citas - 200
+GET {{baseUrl}}/api/appointments
+
+### 5. Obtener cita por ID - 200
+GET {{baseUrl}}/api/appointments/{{createdAppointment.response.body.$.data.id}}
+
+### 6. Buscar por paciente - 200
+GET {{baseUrl}}/api/appointments/search?patientId={{appointmentPatient.response.body.$.data.id}}
+
+### 7. Buscar por médico - 200
+GET {{baseUrl}}/api/appointments/search?doctorId={{appointmentDoctor.response.body.$.data.id}}
+
+### 8. Buscar por fecha - 200
+GET {{baseUrl}}/api/appointments/search?date=2026-11-20
+
+### 9. Combinar filtros - 200
+GET {{baseUrl}}/api/appointments/search?patientId={{appointmentPatient.response.body.$.data.id}}&date=2026-11-20
+
+### 10. Buscar con ID inválido - 400
+GET {{baseUrl}}/api/appointments/search?patientId=abc
+
+### 11. Buscar con fecha inválida - 400
+GET {{baseUrl}}/api/appointments/search?date=20-11-2026
+
+### 12. Crear cita con paciente inexistente - 400
+POST {{baseUrl}}/api/appointments
+Content-Type: application/json
+
+{
+  "patientId": 999999,
+  "doctorId": {{appointmentDoctor.response.body.$.data.id}},
+  "date": "2026-11-20",
+  "reason": "Consulta general"
+}
+
+### 13. Actualizar cita - 200
+PATCH {{baseUrl}}/api/appointments/{{createdAppointment.response.body.$.data.id}}
+Content-Type: application/json
+
+{
+  "reason": "Control de seguimiento"
+}
+
+### 14. PATCH vacío - 400
+PATCH {{baseUrl}}/api/appointments/{{createdAppointment.response.body.$.data.id}}
+Content-Type: application/json
+
+{}
+
+### 15. Intentar eliminar paciente con cita - 409
+DELETE {{baseUrl}}/api/patients/{{appointmentPatient.response.body.$.data.id}}
+
+### 16. Intentar eliminar médico con cita - 409
+DELETE {{baseUrl}}/api/doctors/{{appointmentDoctor.response.body.$.data.id}}
+
+### 17. Eliminar cita - 204
+DELETE {{baseUrl}}/api/appointments/{{createdAppointment.response.body.$.data.id}}
+
+### 18. Comprobar que ya no existe - 404
+GET {{baseUrl}}/api/appointments/{{createdAppointment.response.body.$.data.id}}
+
+### 19. Eliminar paciente - 204
+DELETE {{baseUrl}}/api/patients/{{appointmentPatient.response.body.$.data.id}}
+
+### 20. Eliminar médico - 204
+DELETE {{baseUrl}}/api/doctors/{{appointmentDoctor.response.body.$.data.id}}
+

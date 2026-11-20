@@ -5,6 +5,10 @@ import { notFoundHandler } from "./middlewares/not-found.middleware.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { patientRouter } from "./routes/patient.routes.js";
+import { specialtyRouter } from "./routes/specialty.routes.js";
+import { doctorRouter } from "./routes/doctor.routes.js";
+import { nurseRouter } from "./routes/nurse.routes.js";
+import { appointmentRouter } from "./routes/appointment.routes.js"
 
 export function createApp() {
     const app = express();
@@ -28,6 +32,10 @@ export function createApp() {
     app.use("/api/users", userRouter);
     app.use("/api/auth", authRouter);
     app.use("/api/patients", patientRouter);
+    app.use("/api/specialties", specialtyRouter);
+    app.use("/api/doctors", doctorRouter);
+    app.use("/api/nurses", nurseRouter);
+    app.use("/api/appointments", appointmentRouter);
 
 
     app.use(notFoundHandler);
