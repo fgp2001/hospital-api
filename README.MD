@@ -476,3 +476,284 @@ npm run dev
 **Proyecto académico:** Kopius — The Academy  
 **Curso:** Node.js — Clase 7  
 **Entrega:** Tarea 013 + Desafío 7.6 (password y roles)
+
+
+---
+
+# Clase 8 — Hospital API
+
+Extensión de la API REST desarrollada en Node.js y Express durante la Clase 7 de Kopius Academy.
+
+Esta versión incorpora recursos hospitalarios, relaciones mediante Sequelize, documentación OpenAPI, pruebas con Postman y tests automatizados.
+
+## Tecnologías
+
+- Node.js 24
+- Express
+- PostgreSQL 16
+- Sequelize
+- Docker Compose
+- OpenAPI 3.2.1
+- Swagger UI
+- Postman
+- Supertest
+- Node.js Test Runner (`node:test`)
+
+## Recursos disponibles
+
+La API dispone de 35 operaciones HTTP.
+
+| Recurso | Funcionalidades |
+| --- | --- |
+| Health | Estado de la API |
+| Users | CRUD y búsqueda |
+| Auth | Login |
+| Roles | Actualización de rol |
+| Patients | CRUD y búsqueda |
+| Doctors | CRUD y búsqueda |
+| Nurses | CRUD y búsqueda |
+| Specialties | Listado y detalle |
+| Appointments | CRUD y búsqueda por filtros |
+
+### Rutas principales
+
+**Patients**
+
+- GET /api/patients
+- GET /api/patients/search?keywords=ada
+- GET /api/patients/:id
+- POST /api/patients
+- PATCH /api/patients/:id
+- DELETE /api/patients/:id
+
+**Doctors**
+
+- GET /api/doctors
+- GET /api/doctors/search?keywords=house
+- GET /api/doctors/:id
+- POST /api/doctors
+- PATCH /api/doctors/:id
+- DELETE /api/doctors/:id
+
+**Nurses**
+
+- GET /api/nurses
+- GET /api/nurses/search?keywords=florence
+- GET /api/nurses/:id
+- POST /api/nurses
+- PATCH /api/nurses/:id
+- DELETE /api/nurses/:id
+
+**Specialties**
+
+- GET /api/specialties
+- GET /api/specialties/:id
+
+**Appointments**
+
+- GET /api/appointments
+- GET /api/appointments/search
+- GET /api/appointments/:id
+- POST /api/appointments
+- PATCH /api/appointments/:id
+- DELETE /api/appointments/:id
+
+La búsqueda de appointments admite los parámetros opcionales:
+
+- patientId
+- doctorId
+- date (YYYY-MM-DD)
+
+Los filtros pueden combinarse y utilizan una condición AND.
+
+## Modelo de datos
+
+Los modelos principales son:
+
+- User
+- Specialty
+- Patient
+- Doctor
+- Nurse
+- Appointment
+
+Relaciones:
+
+- Una especialidad puede tener varios médicos.
+- Cada médico pertenece a una especialidad.
+- Un paciente puede tener varios appointments.
+- Un médico puede atender varios appointments.
+- Cada appointment pertenece a un paciente y a un médico.
+
+Las claves foráneas usan restricciones de integridad.
+
+No es posible eliminar un paciente o médico que tenga appointments asociados. En estos casos, la API responde HTTP 409.
+
+## Configuración local
+
+### Requisitos
+
+- Node.js y npm
+- Docker Desktop con Docker Compose
+- Un cliente PostgreSQL, como pgAdmin (opcional)
+
+### Instalar dependencias
+
+```powershell
+npm install
+```
+
+### Variables de entorno
+
+Crear el archivo `.env` con los datos correspondientes al entorno local.
+
+La conexión PostgreSQL de desarrollo utiliza:
+
+```dotenv
+DB_HOST=127.0.0.1
+DB_PORT=5433
+DB_NAME=nodepgdb
+DB_USER=postgres
+DB_PASSWORD=REEMPLAZAR_CON_PASSWORD_LOCAL
+```
+
+No incluir contraseñas reales en Git.
+
+### Levantar PostgreSQL
+
+```powershell
+docker compose up -d --wait
+```
+
+### Sincronizar las tablas
+
+```powershell
+npm run db:sync
+```
+
+### Cargar las especialidades iniciales
+
+```powershell
+npm run db:seed
+```
+
+Estos comandos requieren la configuración de la base de desarrollo y los objetos de PostgreSQL necesarios para el modelo User.
+
+No ejecutar scripts de reseteo sobre una base con información que deba conservarse.
+
+### Iniciar la API
+
+```powershell
+npm run dev
+```
+
+La aplicación queda disponible en:
+
+http://localhost:3000
+
+## Documentación OpenAPI
+
+El contrato completo se encuentra en:
+
+`docs/openapi.yaml`
+
+Swagger UI está disponible en:
+
+http://localhost:3000/docs
+
+El archivo OpenAPI puede validarse con:
+
+```powershell
+npx @redocly/cli lint docs/openapi.yaml
+```
+
+## Pruebas con Postman
+
+Los archivos exportados se encuentran en:
+
+- `docs/postman/Hospital-API.postman_collection.json`
+- `docs/postman/Local.postman_environment.json`
+
+Procedimiento:
+
+1. Iniciar la API con `npm run dev`.
+2. Importar la colección en Postman.
+3. Importar el entorno Local.
+4. Seleccionar el entorno importado.
+5. Ejecutar la colección mediante Collection Runner.
+
+La colección utiliza variables para encadenar los IDs de los registros creados y contiene casos exitosos y de error.
+
+Resultado de la verificación local:
+
+- 187 comprobaciones aprobadas.
+- 0 comprobaciones fallidas.
+
+## Tests automatizados
+
+Los tests de integración utilizan:
+
+- Node.js Test Runner
+- Supertest
+- Sequelize
+- PostgreSQL
+
+La base utilizada para las pruebas es `hospital_test`, independiente de la base de desarrollo `nodepgdb`.
+
+### Variables de prueba
+
+Configurar `.env.test` con:
+
+```dotenv
+NODE_ENV=test
+DB_HOST=127.0.0.1
+DB_PORT=5433
+DB_NAME=hospital_test
+DB_USER=postgres
+DB_PASSWORD=REEMPLAZAR_CON_PASSWORD_LOCAL
+```
+
+### Ejecutar los tests
+
+```powershell
+npm test
+```
+
+Los tests comprueban:
+
+- Health.
+- Regresión del recurso Users.
+- CRUD de pacientes, médicos y enfermeros.
+- Listado y detalle de especialidades.
+- Relaciones entre pacientes, médicos y appointments.
+- Búsqueda de appointments por paciente, médico y fecha.
+- Validaciones HTTP 400.
+- Recursos inexistentes HTTP 404.
+- Conflictos de unicidad HTTP 409.
+- Restricciones de claves foráneas.
+- Formato de los DTOs de respuesta.
+
+Resultado de la última ejecución local:
+
+- 14 tests aprobados.
+- 0 fallidos.
+
+La suite recrea el esquema exclusivamente en `hospital_test` y cierra las conexiones al finalizar.
+
+## Consideraciones de seguridad
+
+- Las respuestas del recurso Users no exponen contraseñas.
+- Los campos internos de Sequelize no se exponen en los DTOs públicos.
+- Los endpoints aplican validaciones de entrada.
+- El cambio de rol mediante `x-user-role` es un mecanismo demostrativo para fines educativos; no constituye una autenticación segura.
+- El entorno de pruebas está separado de la base de desarrollo.
+- Los archivos `.env` y `.env.test` no deben subirse al repositorio.
+
+## Estado del proyecto
+
+- Modelos y relaciones implementados.
+- Endpoints REST funcionales.
+- Contrato OpenAPI validado.
+- Swagger UI funcionando.
+- Colección Postman verificada.
+- Tests automatizados ejecutados correctamente.

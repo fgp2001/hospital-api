@@ -1,0 +1,2190 @@
+openapi: 3.2.1
+info:
+  title: Hospital API
+  summary: API REST hospitalaria - Clase 8 / Tarea 014
+  description: Proyecto educativo Node.js, Express, Sequelize y PostgreSQL. Incluye los endpoints previos de usuarios,
+    login y roles de Clase 7. El recurso se denomina Appointments. El login no emite token; x-user-role simula autorización
+    y es inseguro para producción.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Desarrollo local
+security: []
+tags:
+  - name: Health
+    description: Estado del servicio
+  - name: Users
+    description: Gestión de usuarios y roles de Clase 7
+  - name: Auth
+    description: Comprobación de credenciales, sin token
+  - name: Patients
+    description: Gestión de pacientes
+  - name: Doctors
+    description: Gestión de médicos y especialidad asociada
+  - name: Nurses
+    description: Gestión de enfermeros
+  - name: Appointments
+    description: Atenciones entre paciente y médico, con fecha y motivo
+  - name: Specialties
+    description: Catálogo de especialidades de solo lectura
+paths:
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Estado de la API
+      operationId: getHealth
+      responses:
+        '200':
+          description: La API está disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    examples:
+                      - ok
+              examples:
+                example:
+                  value:
+                    status: ok
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Listar users
+      operationId: listUsers
+      description: Ordenado por id ascendente.
+      responses:
+        '200':
+          description: Colección de users
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        name: Ada Lovelace
+                        email: ada@example.com
+                        role: ROLE_USER
+    post:
+      tags:
+        - Users
+      summary: Crear User
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+            examples:
+              example:
+                value:
+                  name: Ada Lovelace
+                  email: ada@example.com
+                  password: ClaveDePrueba123!
+      responses:
+        '201':
+          description: User creado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      name: Ada Lovelace
+                      email: ada@example.com
+                      role: ROLE_USER
+          headers:
+            Location:
+              description: Ruta del recurso creado
+              schema:
+                type: string
+                examples:
+                  - /api/users/1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/EmailTaken'
+  /api/users/search:
+    get:
+      tags:
+        - Users
+      summary: Buscar users
+      operationId: searchUsers
+      description: Buscar por palabra clave sin distinguir mayúsculas de minúsculas.
+      parameters:
+        - name: keywords
+          in: query
+          required: false
+          description: Búsqueda insensible a mayúsculas y minúsculas; se busca en nombre, apellido o identificador
+            según el recurso
+          schema:
+            type: string
+            examples:
+              - Lovelace
+      responses:
+        '200':
+          description: Resultado de búsqueda en users
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        name: Ada Lovelace
+                        email: ada@example.com
+                        role: ROLE_USER
+  /api/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Users
+      summary: Obtener User por ID
+      operationId: getUserById
+      responses:
+        '200':
+          description: User encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      name: Ada Lovelace
+                      email: ada@example.com
+                      role: ROLE_USER
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+    patch:
+      tags:
+        - Users
+      summary: Actualizar User parcialmente
+      operationId: updateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+            examples:
+              example:
+                value:
+                  name: Ada Byron
+      responses:
+        '200':
+          description: User actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      name: Ada Lovelace
+                      email: ada@example.com
+                      role: ROLE_USER
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/EmailTaken'
+    delete:
+      tags:
+        - Users
+      summary: Eliminar User
+      operationId: deleteUser
+      responses:
+        '204':
+          description: User eliminado; respuesta sin body
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+  /api/patients:
+    get:
+      tags:
+        - Patients
+      summary: Listar patients
+      operationId: listPatients
+      description: Ordenado por id ascendente.
+      responses:
+        '200':
+          description: Colección de patients
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Patient'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        firstName: Ada
+                        lastName: Lovelace
+                        documentNumber: '30111222'
+                        birthDate: '1985-12-10'
+    post:
+      tags:
+        - Patients
+      summary: Crear Patient
+      operationId: createPatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientInput'
+            examples:
+              example:
+                value:
+                  firstName: Ada
+                  lastName: Lovelace
+                  documentNumber: '30111222'
+                  birthDate: '1985-12-10'
+      responses:
+        '201':
+          description: Patient creado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Ada
+                      lastName: Lovelace
+                      documentNumber: '30111222'
+                      birthDate: '1985-12-10'
+          headers:
+            Location:
+              description: Ruta del recurso creado
+              schema:
+                type: string
+                examples:
+                  - /api/patients/1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/DocumentTaken'
+  /api/patients/search:
+    get:
+      tags:
+        - Patients
+      summary: Buscar patients
+      operationId: searchPatients
+      description: Buscar por palabra clave sin distinguir mayúsculas de minúsculas.
+      parameters:
+        - name: keywords
+          in: query
+          required: false
+          description: Búsqueda insensible a mayúsculas y minúsculas; se busca en nombre, apellido o identificador
+            según el recurso
+          schema:
+            type: string
+            examples:
+              - Lovelace
+      responses:
+        '200':
+          description: Resultado de búsqueda en patients
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Patient'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        firstName: Ada
+                        lastName: Lovelace
+                        documentNumber: '30111222'
+                        birthDate: '1985-12-10'
+  /api/patients/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Patients
+      summary: Obtener Patient por ID
+      operationId: getPatientById
+      responses:
+        '200':
+          description: Patient encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Ada
+                      lastName: Lovelace
+                      documentNumber: '30111222'
+                      birthDate: '1985-12-10'
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/PatientNotFound'
+    patch:
+      tags:
+        - Patients
+      summary: Actualizar Patient parcialmente
+      operationId: updatePatient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdate'
+            examples:
+              example:
+                value:
+                  lastName: Byron
+      responses:
+        '200':
+          description: Patient actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Patient'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Ada
+                      lastName: Lovelace
+                      documentNumber: '30111222'
+                      birthDate: '1985-12-10'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/PatientNotFound'
+        '409':
+          $ref: '#/components/responses/DocumentTaken'
+    delete:
+      tags:
+        - Patients
+      summary: Eliminar Patient
+      operationId: deletePatient
+      responses:
+        '204':
+          description: Patient eliminado; respuesta sin body
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/PatientNotFound'
+        '409':
+          $ref: '#/components/responses/PatientHasAppointments'
+  /api/doctors:
+    get:
+      tags:
+        - Doctors
+      summary: Listar doctors
+      operationId: listDoctors
+      description: Ordenado por id ascendente.
+      responses:
+        '200':
+          description: Colección de doctors
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Doctor'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        firstName: Gregory
+                        lastName: House
+                        licenseNumber: MN-88421
+                        specialty:
+                          id: 4
+                          name: Diagnóstico clínico
+    post:
+      tags:
+        - Doctors
+      summary: Crear Doctor
+      operationId: createDoctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorInput'
+            examples:
+              example:
+                value:
+                  firstName: Gregory
+                  lastName: House
+                  licenseNumber: MN-88421
+                  specialtyId: 4
+      responses:
+        '201':
+          description: Doctor creado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Doctor'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Gregory
+                      lastName: House
+                      licenseNumber: MN-88421
+                      specialty:
+                        id: 4
+                        name: Diagnóstico clínico
+          headers:
+            Location:
+              description: Ruta del recurso creado
+              schema:
+                type: string
+                examples:
+                  - /api/doctors/1
+        '400':
+          description: Body inválido o referencia inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidBody:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid request body
+                      details:
+                        - Invalid value
+                invalidReference:
+                  value:
+                    error:
+                      code: INVALID_REFERENCE
+                      message: Referenced resource does not exist
+        '409':
+          $ref: '#/components/responses/LicenseTaken'
+  /api/doctors/search:
+    get:
+      tags:
+        - Doctors
+      summary: Buscar doctors
+      operationId: searchDoctors
+      description: Buscar por palabra clave sin distinguir mayúsculas de minúsculas.
+      parameters:
+        - name: keywords
+          in: query
+          required: false
+          description: Búsqueda insensible a mayúsculas y minúsculas; se busca en nombre, apellido o identificador
+            según el recurso
+          schema:
+            type: string
+            examples:
+              - Lovelace
+      responses:
+        '200':
+          description: Resultado de búsqueda en doctors
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Doctor'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        firstName: Gregory
+                        lastName: House
+                        licenseNumber: MN-88421
+                        specialty:
+                          id: 4
+                          name: Diagnóstico clínico
+  /api/doctors/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Doctors
+      summary: Obtener Doctor por ID
+      operationId: getDoctorById
+      responses:
+        '200':
+          description: Doctor encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Doctor'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Gregory
+                      lastName: House
+                      licenseNumber: MN-88421
+                      specialty:
+                        id: 4
+                        name: Diagnóstico clínico
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/DoctorNotFound'
+    patch:
+      tags:
+        - Doctors
+      summary: Actualizar Doctor parcialmente
+      operationId: updateDoctor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorUpdate'
+            examples:
+              example:
+                value:
+                  specialtyId: 2
+      responses:
+        '200':
+          description: Doctor actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Doctor'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Gregory
+                      lastName: House
+                      licenseNumber: MN-88421
+                      specialty:
+                        id: 4
+                        name: Diagnóstico clínico
+        '400':
+          description: Body inválido o referencia inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid request body
+                      details:
+                        - Invalid value
+                reference:
+                  value:
+                    error:
+                      code: INVALID_REFERENCE
+                      message: Referenced resource does not exist
+        '404':
+          $ref: '#/components/responses/DoctorNotFound'
+        '409':
+          $ref: '#/components/responses/LicenseTaken'
+    delete:
+      tags:
+        - Doctors
+      summary: Eliminar Doctor
+      operationId: deleteDoctor
+      responses:
+        '204':
+          description: Doctor eliminado; respuesta sin body
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/DoctorNotFound'
+        '409':
+          $ref: '#/components/responses/DoctorHasAppointments'
+  /api/nurses:
+    get:
+      tags:
+        - Nurses
+      summary: Listar nurses
+      operationId: listNurses
+      description: Ordenado por id ascendente.
+      responses:
+        '200':
+          description: Colección de nurses
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Nurse'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        firstName: Florence
+                        lastName: Nightingale
+                        licenseNumber: EN-10234
+    post:
+      tags:
+        - Nurses
+      summary: Crear Nurse
+      operationId: createNurse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NurseInput'
+            examples:
+              example:
+                value:
+                  firstName: Florence
+                  lastName: Nightingale
+                  licenseNumber: EN-10234
+      responses:
+        '201':
+          description: Nurse creado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Nurse'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Florence
+                      lastName: Nightingale
+                      licenseNumber: EN-10234
+          headers:
+            Location:
+              description: Ruta del recurso creado
+              schema:
+                type: string
+                examples:
+                  - /api/nurses/1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/LicenseTaken'
+  /api/nurses/search:
+    get:
+      tags:
+        - Nurses
+      summary: Buscar nurses
+      operationId: searchNurses
+      description: Buscar por palabra clave sin distinguir mayúsculas de minúsculas.
+      parameters:
+        - name: keywords
+          in: query
+          required: false
+          description: Búsqueda insensible a mayúsculas y minúsculas; se busca en nombre, apellido o identificador
+            según el recurso
+          schema:
+            type: string
+            examples:
+              - Lovelace
+      responses:
+        '200':
+          description: Resultado de búsqueda en nurses
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Nurse'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        firstName: Florence
+                        lastName: Nightingale
+                        licenseNumber: EN-10234
+  /api/nurses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Nurses
+      summary: Obtener Nurse por ID
+      operationId: getNurseById
+      responses:
+        '200':
+          description: Nurse encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Nurse'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Florence
+                      lastName: Nightingale
+                      licenseNumber: EN-10234
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/NurseNotFound'
+    patch:
+      tags:
+        - Nurses
+      summary: Actualizar Nurse parcialmente
+      operationId: updateNurse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NurseUpdate'
+            examples:
+              example:
+                value:
+                  firstName: Florencia
+      responses:
+        '200':
+          description: Nurse actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Nurse'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      firstName: Florence
+                      lastName: Nightingale
+                      licenseNumber: EN-10234
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NurseNotFound'
+        '409':
+          $ref: '#/components/responses/LicenseTaken'
+    delete:
+      tags:
+        - Nurses
+      summary: Eliminar Nurse
+      operationId: deleteNurse
+      responses:
+        '204':
+          description: Nurse eliminado; respuesta sin body
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/NurseNotFound'
+  /api/appointments:
+    get:
+      tags:
+        - Appointments
+      summary: Listar appointments
+      operationId: listAppointments
+      description: Ordenado por fecha descendente y luego por id descendente.
+      responses:
+        '200':
+          description: Colección de appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        date: '2026-11-20'
+                        reason: Control de presión arterial
+                        patient:
+                          id: 1
+                          firstName: Ada
+                          lastName: Lovelace
+                        doctor:
+                          id: 1
+                          firstName: Gregory
+                          lastName: House
+    post:
+      tags:
+        - Appointments
+      summary: Crear Appointment
+      operationId: createAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentInput'
+            examples:
+              example:
+                value:
+                  patientId: 1
+                  doctorId: 1
+                  date: '2026-11-20'
+                  reason: Control de presión arterial
+      responses:
+        '201':
+          description: Appointment creado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      date: '2026-11-20'
+                      reason: Control de presión arterial
+                      patient:
+                        id: 1
+                        firstName: Ada
+                        lastName: Lovelace
+                      doctor:
+                        id: 1
+                        firstName: Gregory
+                        lastName: House
+          headers:
+            Location:
+              description: Ruta del recurso creado
+              schema:
+                type: string
+                examples:
+                  - /api/appointments/1
+        '400':
+          description: Body inválido o referencia inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidBody:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid request body
+                      details:
+                        - Invalid value
+                invalidReference:
+                  value:
+                    error:
+                      code: INVALID_REFERENCE
+                      message: Referenced resource does not exist
+  /api/appointments/search:
+    get:
+      tags:
+        - Appointments
+      summary: Buscar appointments
+      operationId: searchAppointments
+      description: Los filtros son opcionales y se combinan mediante AND. Sin filtros devuelve todas las citas ordenadas
+        por fecha descendente.
+      parameters:
+        - name: patientId
+          in: query
+          required: false
+          description: Filtrar por ID de paciente
+          schema:
+            type: integer
+            minimum: 1
+            examples:
+              - 1
+        - name: doctorId
+          in: query
+          required: false
+          description: Filtrar por ID de médico
+          schema:
+            type: integer
+            minimum: 1
+            examples:
+              - 1
+        - name: date
+          in: query
+          required: false
+          description: Filtrar por fecha exacta en formato YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+            examples:
+              - '2026-11-20'
+      responses:
+        '200':
+          description: Resultado de búsqueda en appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 1
+                        date: '2026-11-20'
+                        reason: Control de presión arterial
+                        patient:
+                          id: 1
+                          firstName: Ada
+                          lastName: Lovelace
+                        doctor:
+                          id: 1
+                          firstName: Gregory
+                          lastName: House
+        '400':
+          $ref: '#/components/responses/QueryValidationError'
+  /api/appointments/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Appointments
+      summary: Obtener Appointment por ID
+      operationId: getAppointmentById
+      responses:
+        '200':
+          description: Appointment encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      date: '2026-11-20'
+                      reason: Control de presión arterial
+                      patient:
+                        id: 1
+                        firstName: Ada
+                        lastName: Lovelace
+                      doctor:
+                        id: 1
+                        firstName: Gregory
+                        lastName: House
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/AppointmentNotFound'
+    patch:
+      tags:
+        - Appointments
+      summary: Actualizar Appointment parcialmente
+      operationId: updateAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentUpdate'
+            examples:
+              example:
+                value:
+                  reason: Control de seguimiento
+      responses:
+        '200':
+          description: Appointment actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Appointment'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      date: '2026-11-20'
+                      reason: Control de presión arterial
+                      patient:
+                        id: 1
+                        firstName: Ada
+                        lastName: Lovelace
+                      doctor:
+                        id: 1
+                        firstName: Gregory
+                        lastName: House
+        '400':
+          description: Body inválido o referencia inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid request body
+                      details:
+                        - Invalid value
+                reference:
+                  value:
+                    error:
+                      code: INVALID_REFERENCE
+                      message: Referenced resource does not exist
+        '404':
+          $ref: '#/components/responses/AppointmentNotFound'
+    delete:
+      tags:
+        - Appointments
+      summary: Eliminar Appointment
+      operationId: deleteAppointment
+      responses:
+        '204':
+          description: Appointment eliminado; respuesta sin body
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/AppointmentNotFound'
+  /api/specialties:
+    get:
+      tags:
+        - Specialties
+      summary: Listar especialidades disponibles
+      operationId: listSpecialties
+      responses:
+        '200':
+          description: Catálogo de solo lectura
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Specialty'
+              examples:
+                example:
+                  value:
+                    data:
+                      - id: 4
+                        name: Diagnóstico clínico
+  /api/specialties/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags:
+        - Specialties
+      summary: Obtener especialidad por ID
+      operationId: getSpecialtyById
+      responses:
+        '200':
+          description: Especialidad encontrada
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Specialty'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 4
+                      name: Diagnóstico clínico
+        '400':
+          $ref: '#/components/responses/InvalidId'
+        '404':
+          $ref: '#/components/responses/SpecialtyNotFound'
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Comprobar email y contraseña (sin token)
+      operationId: login
+      description: Verifica credenciales mediante bcrypt. No inicia una sesión ni emite JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            examples:
+              example:
+                value:
+                  email: ada@example.com
+                  password: ClaveDePrueba123!
+      responses:
+        '200':
+          description: Credenciales verificadas; no se entrega token ni cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      name: Ada Lovelace
+                      email: ada@example.com
+                      role: ROLE_USER
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+  /api/users/{id}/role:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags:
+        - Users
+      summary: Asignar rol de usuario (DEMO)
+      operationId: assignUserRole
+      description: Autorización educativa simulada con un header controlado por el cliente. No es segura para producción.
+      parameters:
+        - name: x-user-role
+          in: header
+          required: false
+          description: 'DEMO INSEGURA: sólo ROLE_ADMIN permite cambiar roles. No representa autenticación real.'
+          schema:
+            type: string
+            enum:
+              - ROLE_USER
+              - ROLE_ADMIN
+            examples:
+              - ROLE_ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleInput'
+            examples:
+              example:
+                value:
+                  role: ROLE_ADMIN
+      responses:
+        '200':
+          description: Rol actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+              examples:
+                example:
+                  value:
+                    data:
+                      id: 1
+                      name: Ada Lovelace
+                      email: ada@example.com
+                      role: ROLE_ADMIN
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Identificador entero positivo
+      schema:
+        type: integer
+        minimum: 1
+        examples:
+          - 1
+  schemas:
+    User:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+        - role
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        name:
+          type: string
+          examples:
+            - Ada Lovelace
+        email:
+          type: string
+          format: email
+          examples:
+            - ada@example.com
+        role:
+          type: string
+          examples:
+            - ROLE_USER
+          enum:
+            - ROLE_USER
+            - ROLE_ADMIN
+      examples:
+        - id: 1
+          name: Ada Lovelace
+          email: ada@example.com
+          role: ROLE_USER
+    UserInput:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          examples:
+            - Ada Lovelace
+        email:
+          type: string
+          format: email
+          examples:
+            - ada@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          writeOnly: true
+          examples:
+            - ClaveDePrueba123!
+      examples:
+        - name: Ada Lovelace
+          email: ada@example.com
+          password: ClaveDePrueba123!
+    UserUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          examples:
+            - Ada Lovelace
+        email:
+          type: string
+          format: email
+          examples:
+            - ada@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          writeOnly: true
+          examples:
+            - ClaveDePrueba123!
+      minProperties: 1
+      examples:
+        - name: Ada Byron
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          examples:
+            - ada@example.com
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          examples:
+            - ClaveDePrueba123!
+      examples:
+        - email: ada@example.com
+          password: ClaveDePrueba123!
+    RoleInput:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum:
+            - ROLE_USER
+            - ROLE_ADMIN
+          examples:
+            - ROLE_ADMIN
+      examples:
+        - role: ROLE_ADMIN
+    Patient:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - firstName
+        - lastName
+        - documentNumber
+        - birthDate
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        firstName:
+          type: string
+          examples:
+            - Ada
+        lastName:
+          type: string
+          examples:
+            - Lovelace
+        documentNumber:
+          type: string
+          examples:
+            - '30111222'
+        birthDate:
+          type: string
+          format: date
+          examples:
+            - '1985-12-10'
+      examples:
+        - id: 1
+          firstName: Ada
+          lastName: Lovelace
+          documentNumber: '30111222'
+          birthDate: '1985-12-10'
+    PatientInput:
+      type: object
+      additionalProperties: false
+      required:
+        - firstName
+        - lastName
+        - documentNumber
+        - birthDate
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Ada
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Lovelace
+        documentNumber:
+          type: string
+          pattern: ^[0-9]{7,10}$
+          examples:
+            - '30111222'
+        birthDate:
+          type: string
+          format: date
+          examples:
+            - '1985-12-10'
+      examples:
+        - firstName: Ada
+          lastName: Lovelace
+          documentNumber: '30111222'
+          birthDate: '1985-12-10'
+    PatientUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Ada
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Lovelace
+        documentNumber:
+          type: string
+          pattern: ^[0-9]{7,10}$
+          examples:
+            - '30111222'
+        birthDate:
+          type: string
+          format: date
+          examples:
+            - '1985-12-10'
+      minProperties: 1
+      examples:
+        - lastName: Byron
+    PatientRef:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - firstName
+        - lastName
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        firstName:
+          type: string
+          examples:
+            - Ada
+        lastName:
+          type: string
+          examples:
+            - Lovelace
+      examples:
+        - id: 1
+          firstName: Ada
+          lastName: Lovelace
+    Specialty:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          examples:
+            - 4
+        name:
+          type: string
+          examples:
+            - Diagnóstico clínico
+      examples:
+        - id: 4
+          name: Diagnóstico clínico
+    Doctor:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - firstName
+        - lastName
+        - licenseNumber
+        - specialty
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        firstName:
+          type: string
+          examples:
+            - Gregory
+        lastName:
+          type: string
+          examples:
+            - House
+        licenseNumber:
+          type: string
+          examples:
+            - MN-88421
+        specialty:
+          $ref: '#/components/schemas/Specialty'
+      examples:
+        - id: 1
+          firstName: Gregory
+          lastName: House
+          licenseNumber: MN-88421
+          specialty:
+            id: 4
+            name: Diagnóstico clínico
+    DoctorInput:
+      type: object
+      additionalProperties: false
+      required:
+        - firstName
+        - lastName
+        - licenseNumber
+        - specialtyId
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Gregory
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - House
+        licenseNumber:
+          type: string
+          minLength: 4
+          maxLength: 20
+          examples:
+            - MN-88421
+        specialtyId:
+          type: integer
+          minimum: 1
+          examples:
+            - 4
+      examples:
+        - firstName: Gregory
+          lastName: House
+          licenseNumber: MN-88421
+          specialtyId: 4
+    DoctorUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Gregory
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - House
+        licenseNumber:
+          type: string
+          minLength: 4
+          maxLength: 20
+          examples:
+            - MN-88421
+        specialtyId:
+          type: integer
+          minimum: 1
+          examples:
+            - 4
+      minProperties: 1
+      examples:
+        - specialtyId: 2
+    DoctorRef:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - firstName
+        - lastName
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        firstName:
+          type: string
+          examples:
+            - Gregory
+        lastName:
+          type: string
+          examples:
+            - House
+      examples:
+        - id: 1
+          firstName: Gregory
+          lastName: House
+    Nurse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - firstName
+        - lastName
+        - licenseNumber
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        firstName:
+          type: string
+          examples:
+            - Florence
+        lastName:
+          type: string
+          examples:
+            - Nightingale
+        licenseNumber:
+          type: string
+          examples:
+            - EN-10234
+      examples:
+        - id: 1
+          firstName: Florence
+          lastName: Nightingale
+          licenseNumber: EN-10234
+    NurseInput:
+      type: object
+      additionalProperties: false
+      required:
+        - firstName
+        - lastName
+        - licenseNumber
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Florence
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Nightingale
+        licenseNumber:
+          type: string
+          minLength: 4
+          maxLength: 20
+          examples:
+            - EN-10234
+      examples:
+        - firstName: Florence
+          lastName: Nightingale
+          licenseNumber: EN-10234
+    NurseUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Florence
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 120
+          examples:
+            - Nightingale
+        licenseNumber:
+          type: string
+          minLength: 4
+          maxLength: 20
+          examples:
+            - EN-10234
+      minProperties: 1
+      examples:
+        - firstName: Florencia
+    Appointment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - date
+        - reason
+        - patient
+        - doctor
+      properties:
+        id:
+          type: integer
+          examples:
+            - 1
+        date:
+          type: string
+          format: date
+          examples:
+            - '2026-11-20'
+        reason:
+          type: string
+          examples:
+            - Control de presión arterial
+        patient:
+          $ref: '#/components/schemas/PatientRef'
+        doctor:
+          $ref: '#/components/schemas/DoctorRef'
+      examples:
+        - id: 1
+          date: '2026-11-20'
+          reason: Control de presión arterial
+          patient:
+            id: 1
+            firstName: Ada
+            lastName: Lovelace
+          doctor:
+            id: 1
+            firstName: Gregory
+            lastName: House
+    AppointmentInput:
+      type: object
+      additionalProperties: false
+      required:
+        - patientId
+        - doctorId
+        - date
+        - reason
+      properties:
+        patientId:
+          type: integer
+          minimum: 1
+          examples:
+            - 1
+        doctorId:
+          type: integer
+          minimum: 1
+          examples:
+            - 1
+        date:
+          type: string
+          format: date
+          examples:
+            - '2026-11-20'
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 255
+          examples:
+            - Control de presión arterial
+      examples:
+        - patientId: 1
+          doctorId: 1
+          date: '2026-11-20'
+          reason: Control de presión arterial
+    AppointmentUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        patientId:
+          type: integer
+          minimum: 1
+          examples:
+            - 1
+        doctorId:
+          type: integer
+          minimum: 1
+          examples:
+            - 1
+        date:
+          type: string
+          format: date
+          examples:
+            - '2026-11-20'
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 255
+          examples:
+            - Control de presión arterial
+      minProperties: 1
+      examples:
+        - reason: Control de seguimiento
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              examples:
+                - PATIENT_NOT_FOUND
+            message:
+              type: string
+              examples:
+                - Patient not found
+            details:
+              type: array
+              items:
+                type: string
+              examples:
+                - - Invalid value
+          examples:
+            - code: PATIENT_NOT_FOUND
+              message: Patient not found
+      examples:
+        - error:
+            code: PATIENT_NOT_FOUND
+            message: Patient not found
+  responses:
+    ValidationError:
+      description: Body o query inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Invalid request body
+                  details:
+                    - firstName is a required field
+    InvalidId:
+      description: Identificador inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: INVALID_ID
+                  message: Patient id must be a positive integer
+    QueryValidationError:
+      description: Parámetros de búsqueda inválidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Invalid query parameters
+                  details:
+                    - patientId must be a positive integer
+    PatientNotFound:
+      description: Paciente inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: PATIENT_NOT_FOUND
+                  message: Patient not found
+    DoctorNotFound:
+      description: Médico inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: DOCTOR_NOT_FOUND
+                  message: Doctor not found
+    NurseNotFound:
+      description: Enfermero inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: NURSE_NOT_FOUND
+                  message: Nurse not found
+    AppointmentNotFound:
+      description: Cita inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: APPOINTMENT_NOT_FOUND
+                  message: Appointment not found
+    SpecialtyNotFound:
+      description: Especialidad inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: SPECIALTY_NOT_FOUND
+                  message: Specialty not found
+    UserNotFound:
+      description: Usuario inexistente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: USER_NOT_FOUND
+                  message: User not found
+    DocumentTaken:
+      description: Documento duplicado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: DOCUMENT_NUMBER_TAKEN
+                  message: Document number is already registered
+    LicenseTaken:
+      description: Matrícula duplicada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: LICENSE_NUMBER_TAKEN
+                  message: License number is already registered
+    EmailTaken:
+      description: Email duplicado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: EMAIL_TAKEN
+                  message: Email is already registered
+    PatientHasAppointments:
+      description: El paciente tiene citas asociadas
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: PATIENT_HAS_APPOINTMENTS
+                  message: Patient has appointments and cannot be deleted
+    DoctorHasAppointments:
+      description: El médico tiene citas asociadas
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: DOCTOR_HAS_APPOINTMENTS
+                  message: Doctor has appointments and cannot be deleted
+    Forbidden:
+      description: Rol insuficiente en la simulación con x-user-role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: FORBIDDEN
+                  message: Insufficient permissions
+    InvalidCredentials:
+      description: Email o contraseña incorrectos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            example:
+              value:
+                error:
+                  code: INVALID_CREDENTIALS
+                  message: Invalid credentials

@@ -1,0 +1,2769 @@
+{
+  "info": {
+    "_postman_id": "b2bae136-c177-404d-b0b1-1ab1d02c3000",
+    "name": "Hospital API - Tarea 014",
+    "description": "Colección manual ordenada para validar la API en http://localhost:3000. Usa variables dinámicas, verifica HTTP/DTO y elimina los registros temporales al terminar. El header x-user-role es una simulación educativa e insegura. No contiene credenciales reales. IMPORTANTE: ejecutar carpetas y requests en orden completo con Runner; la base debe tener especialidades sembradas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Health",
+      "item": [
+        {
+          "name": "01 Inicializar variables y verificar health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health",
+            "description": "01 Inicializar variables y verificar health"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = String(Date.now()).slice(-9) + String(Math.floor(Math.random() * 100)).padStart(2, \"0\");",
+                  "pm.collectionVariables.set(\"runId\", id);",
+                  "function doc() { return String(100000000 + Math.floor(Math.random() * 900000000)); }",
+                  "let d1 = doc(); let d2 = doc(); while (d1 === d2) d2 = doc();",
+                  "pm.collectionVariables.set(\"patientDocument1\", d1);",
+                  "pm.collectionVariables.set(\"patientDocument2\", d2);",
+                  "pm.collectionVariables.set(\"doctorLicense1\", \"MN-\" + id);",
+                  "pm.collectionVariables.set(\"doctorLicense2\", \"MN-B-\" + id);",
+                  "pm.collectionVariables.set(\"nurseLicense\", \"EN-\" + id);",
+                  "pm.collectionVariables.set(\"testEmail\", \"postman-\" + id + \"@example.test\");",
+                  "pm.collectionVariables.set(\"testPassword\", \"Pm!\" + id);",
+                  ""
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"API operativa\", () => pm.expect(body.status).to.equal(\"ok\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "01 Health"
+    },
+    {
+      "name": "02 Specialties",
+      "item": [
+        {
+          "name": "01 Listar especialidades y capturar ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/specialties",
+            "description": "01 Listar especialidades y capturar ID"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Hay especialidades cargadas\", () => pm.expect(body.data.length).to.be.above(0));",
+                  "  if (body.data.length) pm.collectionVariables.set(\"specialtyId\", body.data[0].id);",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Obtener especialidad por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/specialties/{{specialtyId}}",
+            "description": "02 Obtener especialidad por ID"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"id\", \"name\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Especialidad inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/specialties/999999999",
+            "description": "03 Especialidad inexistente"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"SPECIALTY_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "02 Specialties"
+    },
+    {
+      "name": "03 Patients",
+      "item": [
+        {
+          "name": "01 Crear paciente 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients",
+            "description": "01 Crear paciente 1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ada\",\n  \"lastName\": \"Lovelace\",\n  \"documentNumber\": \"{{patientDocument1}}\",\n  \"birthDate\": \"1985-12-10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"birthDate\", \"documentNumber\", \"firstName\", \"id\", \"lastName\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"patient1Id\", body.data.id);",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/patients\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Crear paciente 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients",
+            "description": "02 Crear paciente 2",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Grace\",\n  \"lastName\": \"Hopper\",\n  \"documentNumber\": \"{{patientDocument2}}\",\n  \"birthDate\": \"1990-04-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"birthDate\", \"documentNumber\", \"firstName\", \"id\", \"lastName\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"patient2Id\", body.data.id);",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/patients\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Listar pacientes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients",
+            "description": "03 Listar pacientes"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Obtener paciente 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/{{patient1Id}}",
+            "description": "04 Obtener paciente 1"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"birthDate\", \"documentNumber\", \"firstName\", \"id\", \"lastName\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"ID correcto\", () => pm.expect(String(body.data.id)).to.equal(String(pm.collectionVariables.get(\"patient1Id\"))));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Buscar paciente por apellido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/search?keywords=LOVELACE",
+            "description": "05 Buscar paciente por apellido"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Incluye paciente creado\", () => pm.expect(body.data.some(x => String(x.id) === String(pm.collectionVariables.get(\"patient1Id\")))).to.equal(true));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Actualizar parcialmente paciente",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients/{{patient1Id}}",
+            "description": "06 Actualizar parcialmente paciente",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastName\": \"Lovelace Byron\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"birthDate\", \"documentNumber\", \"firstName\", \"id\", \"lastName\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"PATCH conservó nombre\", () => { pm.expect(body.data.lastName).to.equal(\"Lovelace Byron\"); pm.expect(body.data.firstName).to.equal(\"Ada\"); });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Documento duplicado -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients",
+            "description": "07 Documento duplicado -> 409",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Otro\",\n  \"lastName\": \"Paciente\",\n  \"documentNumber\": \"{{patientDocument1}}\",\n  \"birthDate\": \"1999-03-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "if (pm.response.code === 409) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"DOCUMENT_NUMBER_TAKEN\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Body incompleto -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients",
+            "description": "08 Body incompleto -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "  pm.test(\"Incluye details\", () => pm.expect(body.error.details).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Campo desconocido -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients",
+            "description": "09 Campo desconocido -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"documentNumber\": \"{{patientDocument1}}\",\n  \"birthDate\": \"1985-12-10\",\n  \"role\": \"ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 ID inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/abc",
+            "description": "10 ID inválido -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_ID\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Paciente inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/999999999",
+            "description": "11 Paciente inexistente -> 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"PATIENT_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 PATCH vacío -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/patients/{{patient1Id}}",
+            "description": "12 PATCH vacío -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "03 Patients"
+    },
+    {
+      "name": "04 Doctors",
+      "item": [
+        {
+          "name": "01 Crear médico 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/doctors",
+            "description": "01 Crear médico 1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Gregory\",\n  \"lastName\": \"House\",\n  \"licenseNumber\": \"{{doctorLicense1}}\",\n  \"specialtyId\": \"{{specialtyId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\", \"specialty\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"doctor1Id\", body.data.id);",
+                  "  pm.test(\"Especialidad anidada\", () => { pm.expect(body.data.specialty).to.have.all.keys(\"id\", \"name\"); });",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/doctors\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Crear médico 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/doctors",
+            "description": "02 Crear médico 2",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Lisa\",\n  \"lastName\": \"Cuddy\",\n  \"licenseNumber\": \"{{doctorLicense2}}\",\n  \"specialtyId\": \"{{specialtyId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\", \"specialty\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"doctor2Id\", body.data.id);",
+                  "  pm.test(\"Especialidad anidada\", () => { pm.expect(body.data.specialty).to.have.all.keys(\"id\", \"name\"); });",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/doctors\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Listar médicos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors",
+            "description": "03 Listar médicos"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Obtener médico 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/{{doctor1Id}}",
+            "description": "04 Obtener médico 1"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\", \"specialty\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Buscar médico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/search?keywords=HOUSE",
+            "description": "05 Buscar médico"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Actualizar médico parcialmente",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/doctors/{{doctor1Id}}",
+            "description": "06 Actualizar médico parcialmente",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastName\": \"House Jr.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\", \"specialty\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"Cambio aplicado\", () => pm.expect(body.data.lastName).to.equal(\"House Jr.\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Matrícula duplicada -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/doctors",
+            "description": "07 Matrícula duplicada -> 409",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Otro\",\n  \"lastName\": \"Doctor\",\n  \"licenseNumber\": \"{{doctorLicense1}}\",\n  \"specialtyId\": \"{{specialtyId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "if (pm.response.code === 409) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"LICENSE_NUMBER_TAKEN\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Specialty inexistente -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/doctors",
+            "description": "08 Specialty inexistente -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Garcia\",\n  \"licenseNumber\": \"MN-INVALID-0001\",\n  \"specialtyId\": 999999999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_REFERENCE\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 ID inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/abc",
+            "description": "09 ID inválido -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_ID\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Médico inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/999999999",
+            "description": "10 Médico inexistente -> 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"DOCTOR_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 PATCH vacío -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/doctors/{{doctor1Id}}",
+            "description": "11 PATCH vacío -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "04 Doctors"
+    },
+    {
+      "name": "05 Nurses",
+      "item": [
+        {
+          "name": "01 Crear enfermero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/nurses",
+            "description": "01 Crear enfermero",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Florence\",\n  \"lastName\": \"Nightingale\",\n  \"licenseNumber\": \"{{nurseLicense}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"nurseId\", body.data.id);",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/nurses\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Listar enfermeros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/nurses",
+            "description": "02 Listar enfermeros"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Obtener enfermero",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/nurses/{{nurseId}}",
+            "description": "03 Obtener enfermero"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Buscar enfermero",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/nurses/search?keywords=NIGHTINGALE",
+            "description": "04 Buscar enfermero"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Actualizar enfermero",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/nurses/{{nurseId}}",
+            "description": "05 Actualizar enfermero",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Florencia\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"firstName\", \"id\", \"lastName\", \"licenseNumber\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"Nombre cambiado\", () => pm.expect(body.data.firstName).to.equal(\"Florencia\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Matrícula duplicada -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/nurses",
+            "description": "06 Matrícula duplicada -> 409",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Otra\",\n  \"lastName\": \"Persona\",\n  \"licenseNumber\": \"{{nurseLicense}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "if (pm.response.code === 409) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"LICENSE_NUMBER_TAKEN\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 ID inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/nurses/abc",
+            "description": "07 ID inválido -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_ID\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 PATCH vacío -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/nurses/{{nurseId}}",
+            "description": "08 PATCH vacío -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Eliminar enfermero -> 204",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/nurses/{{nurseId}}",
+            "description": "09 Eliminar enfermero -> 204"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Enfermero eliminado -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/nurses/{{nurseId}}",
+            "description": "10 Enfermero eliminado -> 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"NURSE_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "05 Nurses"
+    },
+    {
+      "name": "06 Appointments",
+      "item": [
+        {
+          "name": "01 Crear cita 1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/appointments",
+            "description": "01 Crear cita 1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patient1Id}}\",\n  \"doctorId\": \"{{doctor1Id}}\",\n  \"date\": \"2026-11-20\",\n  \"reason\": \"Control de presión arterial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"date\", \"doctor\", \"id\", \"patient\", \"reason\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"appointment1Id\", body.data.id);",
+                  "  pm.test(\"Relaciones mínimas anidadas\", () => { pm.expect(body.data.patient).to.have.all.keys(\"id\", \"firstName\", \"lastName\"); pm.expect(body.data.doctor).to.have.all.keys(\"id\", \"firstName\", \"lastName\"); });",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/appointments\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Crear cita 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/appointments",
+            "description": "02 Crear cita 2",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patient1Id}}\",\n  \"doctorId\": \"{{doctor1Id}}\",\n  \"date\": \"2026-11-21\",\n  \"reason\": \"Seguimiento clínico\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"date\", \"doctor\", \"id\", \"patient\", \"reason\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"appointment2Id\", body.data.id);",
+                  "  pm.test(\"Relaciones mínimas anidadas\", () => { pm.expect(body.data.patient).to.have.all.keys(\"id\", \"firstName\", \"lastName\"); pm.expect(body.data.doctor).to.have.all.keys(\"id\", \"firstName\", \"lastName\"); });",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/appointments\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Crear cita 3",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/appointments",
+            "description": "03 Crear cita 3",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patient2Id}}\",\n  \"doctorId\": \"{{doctor2Id}}\",\n  \"date\": \"2026-11-20\",\n  \"reason\": \"Consulta general\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"date\", \"doctor\", \"id\", \"patient\", \"reason\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"appointment3Id\", body.data.id);",
+                  "  pm.test(\"Relaciones mínimas anidadas\", () => { pm.expect(body.data.patient).to.have.all.keys(\"id\", \"firstName\", \"lastName\"); pm.expect(body.data.doctor).to.have.all.keys(\"id\", \"firstName\", \"lastName\"); });",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/appointments\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Listar citas ordenadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments",
+            "description": "04 Listar citas ordenadas"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Incluye 3 citas nuevas\", () => { const ids = body.data.map(x => String(x.id)); [\"appointment1Id\", \"appointment2Id\", \"appointment3Id\"].forEach(k => pm.expect(ids).to.include(pm.collectionVariables.get(k))); });",
+                  "  pm.test(\"Fechas descendentes\", () => { const dates=body.data.map(x=>x.date); pm.expect(dates).to.eql([...dates].sort().reverse()); });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Obtener cita por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/{{appointment1Id}}",
+            "description": "05 Obtener cita por ID"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"date\", \"doctor\", \"id\", \"patient\", \"reason\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Filtrar por paciente (2 citas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search?patientId={{patient1Id}}",
+            "description": "06 Filtrar por paciente (2 citas)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Dos citas del paciente 1\", () => { const ids = body.data.map(x=>String(x.id)); pm.expect(ids).to.include(String(pm.collectionVariables.get(\"appointment1Id\"))); pm.expect(ids).to.include(String(pm.collectionVariables.get(\"appointment2Id\"))); pm.expect(ids).not.to.include(String(pm.collectionVariables.get(\"appointment3Id\"))); });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Filtrar por médico (2 citas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search?doctorId={{doctor1Id}}",
+            "description": "07 Filtrar por médico (2 citas)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Dos citas del médico 1\", () => { const ids=body.data.map(x=>String(x.id)); pm.expect(ids).to.include(String(pm.collectionVariables.get(\"appointment1Id\"))); pm.expect(ids).to.include(String(pm.collectionVariables.get(\"appointment2Id\"))); pm.expect(ids).not.to.include(String(pm.collectionVariables.get(\"appointment3Id\"))); });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Filtrar por fecha (2 citas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search?date=2026-11-20",
+            "description": "08 Filtrar por fecha (2 citas)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Todas las citas son de la fecha pedida\", () => pm.expect(body.data.every(x=>x.date===\"2026-11-20\")).to.equal(true));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Filtros combinados con AND",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search?patientId={{patient1Id}}&date=2026-11-20",
+            "description": "09 Filtros combinados con AND"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"Filtrado combinado incluye solo cita 1\", () => { const ids=body.data.map(x=>String(x.id)); pm.expect(ids).to.include(String(pm.collectionVariables.get(\"appointment1Id\"))); pm.expect(ids).not.to.include(String(pm.collectionVariables.get(\"appointment2Id\"))); pm.expect(ids).not.to.include(String(pm.collectionVariables.get(\"appointment3Id\"))); });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Filtro patientId inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search?patientId=abc",
+            "description": "10 Filtro patientId inválido -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Fecha inválida -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search?date=20-11-2026",
+            "description": "11 Fecha inválida -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Buscar sin filtros",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/search",
+            "description": "12 Buscar sin filtros"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Actualizar motivo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/appointments/{{appointment1Id}}",
+            "description": "13 Actualizar motivo",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Control de seguimiento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"date\", \"doctor\", \"id\", \"patient\", \"reason\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"Motivo actualizado\", () => pm.expect(body.data.reason).to.equal(\"Control de seguimiento\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Crear cita con paciente inexistente -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/appointments",
+            "description": "14 Crear cita con paciente inexistente -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": 999999999,\n  \"doctorId\": \"{{doctor1Id}}\",\n  \"date\": \"2026-11-20\",\n  \"reason\": \"Control general\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_REFERENCE\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 GET cita inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/999999999",
+            "description": "15 GET cita inexistente -> 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"APPOINTMENT_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 GET ID inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/abc",
+            "description": "16 GET ID inválido -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_ID\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 PATCH vacío -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/appointments/{{appointment1Id}}",
+            "description": "17 PATCH vacío -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Eliminar paciente con citas -> 409",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/{{patient1Id}}",
+            "description": "18 Eliminar paciente con citas -> 409"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "if (pm.response.code === 409) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"PATIENT_HAS_APPOINTMENTS\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Eliminar médico con citas -> 409",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/{{doctor1Id}}",
+            "description": "19 Eliminar médico con citas -> 409"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "if (pm.response.code === 409) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"DOCTOR_HAS_APPOINTMENTS\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "06 Appointments"
+    },
+    {
+      "name": "07 Users y Auth",
+      "item": [
+        {
+          "name": "01 Regresión: listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users",
+            "description": "01 Regresión: listar usuarios"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "  pm.test(\"No hay hashes en listado\", () => pm.expect(body.data.every(u=>!Object.prototype.hasOwnProperty.call(u,\"password\"))).to.equal(true));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Crear usuario de prueba",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users",
+            "description": "02 Crear usuario de prueba",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Tester\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"email\", \"id\", \"name\", \"role\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.collectionVariables.set(\"userId\", body.data.id);",
+                  "}",
+                  "if (pm.response.code === 201) pm.test(\"Header Location\", () => pm.expect(pm.response.headers.get(\"Location\")).to.match(/^\\/api\\/users\\/\\d+$/));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Obtener usuario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}",
+            "description": "03 Obtener usuario"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"email\", \"id\", \"name\", \"role\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Buscar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/search?keywords=POSTMAN",
+            "description": "04 Buscar usuarios"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Login válido (sin token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "05 Login válido (sin token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"email\", \"id\", \"name\", \"role\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Login inválido -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "06 Login inválido -> 401",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"Incorrecta123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "if (pm.response.code === 401) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_CREDENTIALS\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Asignar rol sin header -> 403",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users/{{userId}}/role",
+            "description": "07 Asignar rol sin header -> 403",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ROLE_ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "if (pm.response.code === 403) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"FORBIDDEN\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Rol inválido con demo header -> 400",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-user-role",
+                "value": "ROLE_ADMIN"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users/{{userId}}/role",
+            "description": "08 Rol inválido con demo header -> 400",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ROLE_ROOT\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Cambiar rol con demo header -> 200",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-user-role",
+                "value": "ROLE_ADMIN"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users/{{userId}}/role",
+            "description": "09 Cambiar rol con demo header -> 200",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ROLE_ADMIN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"email\", \"id\", \"name\", \"role\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"Role actualizado\", () => pm.expect(body.data.role).to.equal(\"ROLE_ADMIN\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Actualizar nombre de usuario",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users/{{userId}}",
+            "description": "10 Actualizar nombre de usuario",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Tester Updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"DTO sin columnas internas\", () => {",
+                  "    pm.expect(Object.keys(body.data).sort()).to.eql([\"email\", \"id\", \"name\", \"role\"]);",
+                  "    pm.expect(body.data).not.to.have.property(\"password\");",
+                  "    pm.expect(body.data).not.to.have.property(\"createdAt\");",
+                  "    pm.expect(body.data).not.to.have.property(\"updatedAt\");",
+                  "  });",
+                  "  pm.test(\"Nombre actualizado\", () => pm.expect(body.data.name).to.equal(\"Postman Tester Updated\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Usuario inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/999999999",
+            "description": "11 Usuario inexistente -> 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"USER_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 ID usuario inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/abc",
+            "description": "12 ID usuario inválido -> 400"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "if (pm.response.code === 400) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"INVALID_ID\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "07 Users y Auth"
+    },
+    {
+      "name": "08 Cleanup",
+      "item": [
+        {
+          "name": "01 Eliminar cita 1",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/{{appointment1Id}}",
+            "description": "01 Eliminar cita 1"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Eliminar cita 2",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/{{appointment2Id}}",
+            "description": "02 Eliminar cita 2"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Eliminar cita 3",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/{{appointment3Id}}",
+            "description": "03 Eliminar cita 3"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Comprobar cita eliminada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/appointments/{{appointment1Id}}",
+            "description": "04 Comprobar cita eliminada"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "if (pm.response.code === 404) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Codigo de error\", () => pm.expect(body.error.code).to.eql(\"APPOINTMENT_NOT_FOUND\"));",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Eliminar médico 1",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/{{doctor1Id}}",
+            "description": "05 Eliminar médico 1"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Eliminar médico 2",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/doctors/{{doctor2Id}}",
+            "description": "06 Eliminar médico 2"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Eliminar paciente 1",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/{{patient1Id}}",
+            "description": "07 Eliminar paciente 1"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Eliminar paciente 2",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/patients/{{patient2Id}}",
+            "description": "08 Eliminar paciente 2"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Eliminar usuario temporal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/users/{{userId}}",
+            "description": "09 Eliminar usuario temporal"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Sin body\", () => pm.expect(pm.response.text()).to.equal(\"\"));",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Verificar usuarios y limpiar variables",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/users",
+            "description": "10 Verificar usuarios y limpiar variables"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"data es un array\", () => pm.expect(body.data).to.be.an(\"array\"));",
+                  "}",
+                  "",
+                  "pm.collectionVariables.unset(\"specialtyId\");",
+                  "pm.collectionVariables.unset(\"patient1Id\");",
+                  "pm.collectionVariables.unset(\"patient2Id\");",
+                  "pm.collectionVariables.unset(\"doctor1Id\");",
+                  "pm.collectionVariables.unset(\"doctor2Id\");",
+                  "pm.collectionVariables.unset(\"nurseId\");",
+                  "pm.collectionVariables.unset(\"appointment1Id\");",
+                  "pm.collectionVariables.unset(\"appointment2Id\");",
+                  "pm.collectionVariables.unset(\"appointment3Id\");",
+                  "pm.collectionVariables.unset(\"userId\");",
+                  "pm.collectionVariables.unset(\"patientDocument1\");",
+                  "pm.collectionVariables.unset(\"patientDocument2\");",
+                  "pm.collectionVariables.unset(\"doctorLicense1\");",
+                  "pm.collectionVariables.unset(\"doctorLicense2\");",
+                  "pm.collectionVariables.unset(\"nurseLicense\");",
+                  "pm.collectionVariables.unset(\"testEmail\");",
+                  "pm.collectionVariables.unset(\"testPassword\");",
+                  "pm.collectionVariables.unset(\"runId\");",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "08 Cleanup"
+    }
+  ],
+  "variable": [
+    {
+      "key": "specialtyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patient1Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patient2Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctor1Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctor2Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nurseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appointment1Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appointment2Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appointment3Id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientDocument1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientDocument2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctorLicense1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctorLicense2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nurseLicense",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "runId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
