@@ -100,7 +100,7 @@ export function createApp() {
   app.use("/api/patients", authenticate, authorizeByMethod({
     GET: ALL_ROLES, POST: ["ADMIN", "RECEPTIONIST"], PATCH: ["ADMIN", "RECEPTIONIST"], DELETE: ["ADMIN"]
   }), patientRouter);
-  app.use("/api/specialties", authenticate, authorizeByMethod({ GET: "ALL_ROLES" }), specialtyRouter);
+  app.use("/api/specialties", authenticate, authorizeByMethod({ GET: ["ADMIN", "DOCTOR", "RECEPTIONIST"], }), specialtyRouter);
   app.use("/api/doctors", authenticate, authorizeByMethod({
     GET: ALL_ROLES, POST: ["ADMIN"], PATCH: ["ADMIN"], DELETE: ["ADMIN"]
   }), doctorRouter);

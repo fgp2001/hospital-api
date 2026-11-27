@@ -757,3 +757,400 @@ La suite recrea el esquema exclusivamente en `hospital_test` y cierra las conexi
 - Swagger UI funcionando.
 - Colección Postman verificada.
 - Tests automatizados ejecutados correctamente.
+
+# Clase 9 — Tarea 015: Autenticación y autorización con JWT
+
+## Descripción
+
+En esta etapa se amplió **Hospital API**, desarrollada durante las Clases 7 y 8 de Kopius Academy, para incorporar autenticación y autorización mediante **JSON Web Tokens (JWT)**.
+
+La API permite identificar usuarios mediante correo electrónico y contraseña, emitir tokens de acceso y restringir las operaciones sobre los recursos hospitalarios según el rol del usuario autenticado.
+
+También se incorporaron medidas adicionales de seguridad, documentación OpenAPI con autenticación Bearer y pruebas de integración.
+
+## Tecnologías utilizadas
+
+- Node.js y JavaScript ES Modules
+- Express
+- PostgreSQL y Sequelize
+- bcrypt para hashing y verificación de contraseñas
+- jsonwebtoken para generación y validación de JWT
+- Helmet para cabeceras HTTP de seguridad
+- express-rate-limit para limitar intentos de login
+- Swagger UI y OpenAPI
+- Postman para pruebas HTTP
+- Supertest y node:test para tests automatizados
+- Docker Compose para PostgreSQL
+
+## Autenticación mediante JWT
+
+### POST /api/auth/login
+
+Permite autenticar un usuario mediante sus credenciales.
+
+**Request:**
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
+
+```json
+{
+  "email": "usuario@hospital.local",
+  "password": "PASSWORD_DEL_USUARIO"
+}
+```
+
+**Respuesta exitosa — HTTP 200:**
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+```
+
+El Access Token:
+
+- Se firma mediante HS256.
+- Tiene una duración de 15 minutos.
+- Contiene los claims `sub`, `role`, `iss`, `aud`, `iat` y `exp`.
+- No contiene contraseñas ni información clínica.
+- Debe enviarse en el header `Authorization` para acceder a recursos protegidos.
+
+Las credenciales incorrectas devuelven `401 INVALID_CREDENTIALS`, sin revelar si el correo electrónico existe.
+
+Las cuentas inactivas tampoco pueden iniciar sesión.
+
+### GET /api/auth/me
+
+Devuelve el perfil público del usuario autenticado.
+
+**Request:**
+
+```http
+GET /api/auth/me
+Authorization: Bearer ACCESS_TOKEN
+```
+
+**Respuesta exitosa — HTTP 200:**
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Usuario de prueba",
+    "email": "usuario@hospital.local",
+    "role": "ADMIN"
+  }
+}
+```
+
+El perfil se obtiene desde PostgreSQL después de verificar el JWT.
+
+La respuesta utiliza un DTO público, por lo que no expone el hash de contraseña.
+
+## Usuarios y roles
+
+El modelo `User` dispone de:
+
+| Campo | Descripción |
+|---|---|
+| id | Identificador del usuario |
+| name | Nombre |
+| email | Correo electrónico único |
+| password | Hash bcrypt de la contraseña |
+| role | Rol de autorización |
+| isActive | Estado de la cuenta |
+
+Los roles utilizados en esta versión son:
+
+- `ADMIN`
+- `DOCTOR`
+- `RECEPTIONIST`
+
+Los roles anteriores de la Clase 7 (`ROLE_USER` y `ROLE_ADMIN`) fueron reemplazados en las reglas de negocio por los nuevos roles.
+
+La asignación y modificación de roles está restringida a usuarios administradores.
+
+## Autorización de recursos
+
+Se implementaron dos middlewares principales:
+
+**authenticate**
+
+Verifica que la petición tenga un JWT válido, comprueba su firma, expiración, emisor y audiencia, y recupera el usuario actual desde PostgreSQL.
+
+**authorize**
+
+Comprueba que el usuario autenticado tenga uno de los roles autorizados para ejecutar la operación solicitada.
+
+### Matriz de permisos
+
+| Recurso | ADMIN | DOCTOR | RECEPTIONIST |
+|---|---|---|---|
+| Users | CRUD y roles | Sin acceso | Sin acceso |
+| Patients | CRUD completo | Lectura | Lectura, creación y actualización |
+| Doctors | CRUD completo | Lectura | Lectura |
+| Nurses | CRUD completo | Lectura | Lectura |
+| Specialties | Lectura | Lectura | Lectura |
+| Appointments | CRUD completo | Lectura, creación y actualización | Lectura, creación y actualización |
+
+Las operaciones de eliminación quedan reservadas al rol ADMIN cuando corresponda.
+
+Esta matriz implementa permisos por función y rol. No incorpora todavía restricciones de acceso por pertenencia a un paciente o médico específico.
+
+### Respuestas de autorización
+
+**401 Unauthorized**
+
+Se utiliza cuando no existe una autenticación válida.
+
+Ejemplos:
+
+- No se envía un Access Token.
+- El token tiene una firma inválida.
+- El token está vencido.
+- El usuario ya no existe o está inactivo.
+
+**403 Forbidden**
+
+Se utiliza cuando el usuario está autenticado, pero no posee los permisos necesarios.
+
+Por ejemplo, cuando un usuario `RECEPTIONIST` intenta eliminar un paciente.
+
+El antiguo mecanismo de autorización mediante `x-user-role` fue eliminado. Los permisos se obtienen exclusivamente de la identidad autenticada y su rol vigente.
+
+## Medidas adicionales de seguridad
+
+### Hashing de contraseñas
+
+Las contraseñas se almacenan mediante bcrypt. Nunca se devuelve el campo `password` en las respuestas de la API.
+
+### Helmet
+
+Se incorporó Helmet para establecer cabeceras HTTP de seguridad.
+
+Swagger UI utiliza un archivo JavaScript externo (`docs/swagger-init.js`) para funcionar con la política Content Security Policy.
+
+### Rate limiting
+
+El endpoint `POST /api/auth/login` cuenta con un limitador de intentos.
+
+La configuración implementada permite hasta 10 intentos fallidos durante una ventana de 15 minutos por IP, utilizando almacenamiento en memoria.
+
+Cuando se supera el límite, la API devuelve:
+
+**HTTP 429 Too Many Requests**
+
+```json
+{
+  "error": {
+    "code": "TOO_MANY_REQUESTS",
+    "message": "Too many login attempts, please try again later"
+  }
+}
+```
+
+### Validación y DTOs
+
+Los cuerpos de entrada se validan mediante Yup.
+
+Los DTOs de salida evitan exponer propiedades internas y credenciales.
+
+El servidor limita el tamaño del cuerpo JSON recibido.
+
+## Configuración de JWT
+
+La aplicación utiliza la variable de entorno `JWT_SECRET`.
+
+Esta variable debe contener un secreto aleatorio de alta entropía y no debe almacenarse en el repositorio.
+
+Ejemplo de configuración local:
+
+```dotenv
+NODE_ENV=development
+PORT=3000
+CORS_ORIGIN=http://localhost:5173
+
+DB_HOST=127.0.0.1
+DB_PORT=5433
+DB_NAME=nodepgdb
+DB_USER=postgres
+DB_PASSWORD=REEMPLAZAR_CON_PASSWORD_LOCAL
+
+JWT_SECRET=REEMPLAZAR_CON_SECRETO_ALEATORIO
+```
+
+Para generar un secreto desde Node.js:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+```
+
+Los archivos `.env` y `.env.test` contienen configuraciones privadas y no deben subirse a Git.
+
+Se deben utilizar secretos distintos para desarrollo y pruebas.
+
+## Documentación Swagger y OpenAPI
+
+La especificación se encuentra en:
+
+`docs/openapi.yaml`
+
+La documentación interactiva está disponible en:
+
+http://localhost:3000/docs
+
+Swagger UI permite autenticar las peticiones mediante el esquema `bearerAuth`.
+
+### Uso de Swagger con JWT
+
+1. Iniciar la API.
+2. Abrir `/docs`.
+3. Ejecutar `POST /api/auth/login`.
+4. Copiar `accessToken` de la respuesta.
+5. Presionar **Authorize**.
+6. Pegar el token, sin el prefijo `Bearer`.
+7. Ejecutar los endpoints protegidos.
+
+El contrato documenta las respuestas de autenticación y autorización, incluyendo los estados `401`, `403` y `429` cuando corresponden.
+
+Para validar OpenAPI:
+
+```powershell
+npx @redocly/cli lint docs/openapi.yaml
+```
+
+## Pruebas con Postman
+
+La colección se encuentra en:
+
+`docs/postman/Hospital-API.postman_collection.json`
+
+Y el entorno local en:
+
+`docs/postman/Local.postman_environment.json`
+
+La colección utiliza autenticación Bearer mediante una variable `accessToken`, obtenida después del login.
+
+Se actualizaron las pruebas que dependían de la autenticación simulada y del formato anterior de respuesta del login.
+
+**Resultado de las pruebas manuales:**
+
+- 187 comprobaciones aprobadas.
+- 0 fallidas.
+
+Las credenciales y los tokens de prueba no deben incluirse en el archivo exportado para la entrega.
+
+## Tests automatizados
+
+Los tests se encuentran en:
+
+`test/integration.test.js`
+
+Se utilizan:
+
+- Node.js Test Runner
+- Supertest
+- Sequelize
+- PostgreSQL
+
+La suite trabaja con la base independiente `hospital_test`.
+
+La preparación del esquema está implementada en:
+
+`test/setup.js`
+
+Antes de sincronizar o limpiar tablas, se verifica que la conexión corresponda a la base `hospital_test`, evitando operaciones destructivas sobre `nodepgdb`.
+
+Para ejecutar:
+
+```powershell
+npm test
+```
+
+### Cobertura
+
+Los tests comprueban:
+
+- Funcionamiento de los endpoints hospitalarios.
+- Creación, consulta, actualización y eliminación de recursos.
+- Validaciones de entrada y errores HTTP.
+- Relaciones y restricciones de integridad.
+- Login con credenciales válidas.
+- Generación y validación de JWT.
+- Perfil del usuario autenticado.
+- Acceso sin token.
+- Tokens inválidos y expirados.
+- Restricciones por roles.
+- Usuarios inactivos.
+- Imposibilidad de autorizar mediante `x-user-role`.
+- Respuestas uniformes ante credenciales incorrectas.
+
+**Resultado de la suite de integración:**
+
+- 24 tests automatizados aprobados.
+- 0 fallidos.
+
+## Ejecución del proyecto
+
+Instalar dependencias:
+
+```powershell
+npm install
+```
+
+Levantar PostgreSQL:
+
+```powershell
+docker compose up -d --wait
+```
+
+Configurar las variables del archivo `.env`.
+
+Iniciar la aplicación:
+
+```powershell
+npm run dev
+```
+
+Ejecutar los tests automatizados:
+
+```powershell
+npm test
+```
+
+La aplicación utiliza el puerto 3000 de forma predeterminada y PostgreSQL está disponible en el puerto local 5433.
+
+## Desafío opcional: Refresh Tokens
+
+La Clase 9 introduce como desafío adicional la implementación de Refresh Tokens.
+
+Esta funcionalidad no forma parte de la implementación actual.
+
+Como posible mejora futura se contempla:
+
+- Persistir hashes de Refresh Tokens.
+- Implementar `POST /api/auth/refresh`.
+- Incorporar rotación y revocación.
+- Implementar `POST /api/auth/logout`.
+- Gestionar sesiones mediante cookies seguras.
+
+## Estado de la Tarea 015
+
+- [x] Persistencia de usuarios y hashing de contraseñas.
+- [x] Roles ADMIN, DOCTOR y RECEPTIONIST.
+- [x] Estado activo de usuarios.
+- [x] Login con emisión de JWT.
+- [x] Endpoint `/api/auth/me`.
+- [x] Middlewares de autenticación y autorización.
+- [x] Protección de recursos hospitalarios.
+- [x] Eliminación de autorización simulada.
+- [x] Helmet y rate limiting.
+- [x] Swagger con Bearer Authentication.
+- [x] Pruebas manuales con Postman.
+- [x] Tests automatizados de integración.
+- [ ] Revisión final del repositorio y publicación de la entrega.

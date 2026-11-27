@@ -57,7 +57,7 @@ export const authorize = (...allowedRoles) => {
         if (!req.auth || !allowedRoles.includes(req.auth.role)) {
             return res.status(403).json({
                 error: {
-                    code: "FORBBIDEN",
+                    code: "FORBIDDEN",
                     message: "Insufficient permissions for this resources"
                 },
             });
