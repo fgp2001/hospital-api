@@ -12,15 +12,15 @@ const password = yup.string().trim().min(8).max(72).test(
 const role = yup
     .string()
     .oneOf(
-        ["ROLE_USER", "ROLE_ADMIN"],
-        "Role must be ROLE_USER or ROLE_ADMIN"
+        ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+        "Role must be ADMIN or DOCTOR or RECEPTIONIST"
     );
 
 export const createUserDTO = yup
     .object({
         name: name.required(),
         email: email.required(),
-        password : password.required(),
+        password: password.required(),
     })
     .noUnknown(true, "Unknown fields are not allowed");
 

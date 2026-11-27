@@ -29,13 +29,26 @@ export async function prepareTestDatabase() {
         WHERE typname = 'user_role'
       ) THEN
         CREATE TYPE user_role AS ENUM (
-          'ROLE_USER',
-          'ROLE_ADMIN'
+          'ADMIN',
+          'DOCTOR',
+          'RECEPTIONIST'
         );
       END IF;
     END
     $$;
   `);
+
+    await sequelize.query(
+        "ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'ADMIN'"
+    );
+
+    await sequelize.query(
+        "ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'DOCTOR'"
+    );
+
+    await sequelize.query(
+        "ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'RECEPTIONIST'"
+    );
 
 
     await sequelize.sync({

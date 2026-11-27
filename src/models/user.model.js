@@ -39,13 +39,19 @@ User.init(
         role: {
             type: "user_role",
             allowNull: false,
-            defaultValue: "ROLE_USER",
+            defaultValue: "RECEPTIONIST",
             validate: {
                 isIn: {
-                    args: [["ROLE_USER", "ROLE_ADMIN"]],
+                    args: [["ADMIN", "DOCTOR", "RECEPTIONIST"]],
                     msg: "Invalid role",
                 },
             },
+        },
+
+        isActive: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true,
         },
     },
     {

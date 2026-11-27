@@ -9,7 +9,8 @@ info:
 servers:
   - url: http://localhost:3000
     description: Desarrollo local
-security: []
+security:
+  - bearerAuth: []
 tags:
   - name: Health
     description: Estado del servicio
@@ -34,6 +35,7 @@ paths:
         - Health
       summary: Estado de la API
       operationId: getHealth
+      security: []
       responses:
         '200':
           description: La API está disponible
@@ -1266,6 +1268,7 @@ paths:
         - Auth
       summary: Comprobar email y contraseña (sin token)
       operationId: login
+      security: []
       description: Verifica credenciales mediante bcrypt. No inicia una sesión ni emite JWT.
       requestBody:
         required: true
@@ -1279,17 +1282,12 @@ paths:
                   email: ada@example.com
                   password: ClaveDePrueba123!
       responses:
-        '200':
-          description: Credenciales verificadas; no se entrega token ni cookie
+        "200":
+          description: Autenticación exitosa
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - data
-                properties:
-                  data:
-                    $ref: '#/components/schemas/User'
+                $ref: "#/components/schemas/AccessTokenResponse"
               examples:
                 example:
                   value:
@@ -1301,7 +1299,39 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
-          $ref: '#/components/responses/InvalidCredentials'
+          $ref: '#/components/responses/InvalidCredentials'          
+        '429':
+          description: Demasiados intentos de inicio de sesión
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Obtener el usuario autenticado
+      operationId: getAuthenticatedUser
+      description: >
+        Devuelve el perfil público del usuario
+        identificado mediante un JWT válido.
+      responses:
+        "200":
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Token ausente, inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/users/{id}/role:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -1371,7 +1401,35 @@ components:
         minimum: 1
         examples:
           - 1
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Ingresar el accessToken obtenido desde
+        POST /api/auth/login.        
   schemas:
+    AccessTokenResponse:
+      type: object
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          description: JWT firmado con HS256
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          example: 900
+      examples:
+        - accessToken: eyJhbGciOiJIUzI1NiIs...
+          tokenType: Bearer
+          expiresIn: 900
     User:
       type: object
       additionalProperties: false
